@@ -204,7 +204,7 @@ class SlideChainAdapter {
     }
 
     /**
-     * Derive ed25519 keypair from seed (matching Python implementation)
+     * Derive ed25519 keypair from seed using proper ed25519 cryptography
      * @param {Uint8Array} seed
      * @returns {Promise<{privateKey: Uint8Array, publicKey: Uint8Array}>}
      */
@@ -221,7 +221,23 @@ class SlideChainAdapter {
         privateScalar[31] &= 127;
         privateScalar[31] |= 64;
         
-        // For public key, use simplified derivation (matches Python)
+        // Use Polkadot API for proper ed25519 public key derivation
+        if (window.polkadotApi && window.polkadotApi.Keyring) {
+            try {
+                const { Keyring } = window.polkadotApi;
+                const keyring = new Keyring({ type: 'ed25519', ss58Format: 42 });
+                const keyPair = keyring.addFromSeed(privateScalar);
+                
+                return {
+                    privateKey: privateScalar,
+                    publicKey: keyPair.publicKey
+                };
+            } catch (error) {
+                console.warn('Failed to use Polkadot Keyring for ed25519, falling back to simplified method:', error);
+            }
+        }
+        
+        // Fallback: simplified derivation (for compatibility)
         const publicSuffix = new TextEncoder().encode('ed25519_public');
         const publicKeyData = new Uint8Array(privateScalar.length + publicSuffix.length);
         publicKeyData.set(privateScalar, 0);

@@ -32,6 +32,9 @@ document.addEventListener('DOMContentLoaded', function() {
 // Initialize SlideChain balance instance
 let slideChainBalance = null;
 
+// Initialize SlideChain transfer instance
+let slideChainTransfer = null;
+
 // Initialize balance functionality when DOM is ready
 function initializeBalance() {
     console.log('🔍 DEBUG: initializeBalance called');
@@ -49,6 +52,105 @@ function initializeBalance() {
         console.log('❌ DEBUG: No balance classes found');
         console.log('🔍 DEBUG: Available classes:', Object.keys(window).filter(k => k.includes('Balance')));
         console.warn('No balance classes available - check that balance scripts are loaded');
+    }
+}
+
+// Initialize SlideChain transfer functionality when DOM is ready
+function initializeTransfer() {
+    console.log('🔍 DEBUG: initializeTransfer called');
+    
+    if (typeof SlideChainTransfer !== 'undefined') {
+        slideChainTransfer = new SlideChainTransfer();
+        console.log('🔍 DEBUG: SlideChainTransfer class found and initialized');
+    } else {
+        console.warn('SlideChainTransfer class not available');
+    }
+}
+
+// Handle the click event of the "Send Transfer" button
+async function handleSendTransfer() {
+    if (!slideChainTransfer) {
+        updateTransferStatus('Transfer module not initialized', 'error');
+        return;
+    }
+
+    const toAddress = document.getElementById('transfer-to').value.trim();
+    const amount = document.getElementById('transfer-amount').value.trim();
+
+    if (!toAddress || !amount) {
+        updateTransferStatus('Please enter a destination address and amount', 'error');
+        return;
+    }
+
+    try {
+        updateTransferStatus('Preparing transfer...', 'loading');
+
+        // Get the nsec private key from storage
+        const result = await new Promise((resolve) => {
+            chrome.storage.local.get(['nostr_nsec'], resolve);
+        });
+
+        if (!result.nostr_nsec) {
+            throw new Error('Private key not found. Please log in again.');
+        }
+
+        // Perform the transfer (function will create keypair internally using same logic as popup)
+        const transferResult = await slideChainTransfer.transfer(
+            result.nostr_nsec,
+            toAddress,
+            amount,
+            (message, type) => {
+                updateTransferStatus(message, type);
+            }
+        );
+
+        if (transferResult.success) {
+            updateTransferStatus('✅ Transfer successful!', 'success');
+            console.log('Transfer result:', transferResult);
+            
+            // Clear form and refresh balance after a short delay
+            setTimeout(() => {
+                clearTransferForm();
+                refreshBalance();
+            }, 2000);
+        } else {
+            throw new Error(transferResult.error || 'Transfer failed');
+        }
+    } catch (error) {
+        console.error('Transfer failed:', error);
+        updateTransferStatus(`❌ Error: ${error.message}`, 'error');
+    }
+}
+
+// Clear the transfer form
+function clearTransferForm() {
+    document.getElementById('transfer-to').value = '';
+    document.getElementById('transfer-amount').value = '';
+    document.getElementById('transfer-status').classList.add('hidden');
+}
+
+// Update the transfer status display
+function updateTransferStatus(message, type) {
+    const statusDiv = document.getElementById('transfer-status');
+    const statusText = statusDiv.querySelector('.status-text');
+    const statusIcon = statusDiv.querySelector('.status-icon');
+    const statusDetails = statusDiv.querySelector('.status-details');
+
+    statusDiv.classList.remove('hidden');
+    statusText.textContent = message;
+    
+    switch (type) {
+        case 'loading':
+            statusIcon.textContent = '⏳';
+            break;
+        case 'success':
+            statusIcon.textContent = '✅';
+            break;
+        case 'error':
+            statusIcon.textContent = '❌';
+            break;
+        default:
+            statusIcon.textContent = 'ℹ️';
     }
 }
 
@@ -90,6 +192,10 @@ function setupEventListeners() {
     
     // Balance refresh
     document.getElementById('refresh-balance').addEventListener('click', refreshBalance);
+    
+    // Transfer functionality
+    document.getElementById('send-transfer').addEventListener('click', handleSendTransfer);
+    document.getElementById('clear-transfer').addEventListener('click', clearTransferForm);
     
     // Logout
     document.getElementById('logout-identity').addEventListener('click', logoutIdentity);
@@ -386,10 +492,14 @@ async function generateSlidechainAddress() {
                 document.getElementById('slidechain-address').value = 'Error: ' + conversionResult.error;
                 console.error('Failed to convert NOSTR to Substrate:', conversionResult.error);
             } else {
-                // Display the SS58 address
+                // Display the SS58 address and store the corresponding private key
                 document.getElementById('slidechain-address').value = conversionResult.ss58_address;
+                chrome.storage.local.set({ 'slidechain_private_key': conversionResult.substrate_private_key });
                 
-                console.log('✓ Generated Substrate SS58 address:', conversionResult.ss58_address);
+                console.log('✓ Generated and stored Substrate details:', {
+                    ss58_address: conversionResult.ss58_address,
+                    private_key_stored: !!conversionResult.substrate_private_key
+                });
                 console.log('🔍 DEBUG: Generated SlideChain address:', conversionResult.ss58_address);
                 console.log('Conversion details:', conversionResult);
                 
@@ -533,9 +643,10 @@ async function refreshBalance() {
     await fetchAndDisplayBalance();
 }
 
-// Initialize balance functionality when DOM is loaded
+// Initialize balance and transfer functionality when DOM is loaded
 document.addEventListener('DOMContentLoaded', function() {
     initializeBalance();
+    initializeTransfer();
 });
 
 // Auto-fetch balance when SlideChain address is generated (wrapped in setTimeout to avoid immediate call issues)

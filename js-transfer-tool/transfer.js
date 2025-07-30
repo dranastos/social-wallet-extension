@@ -19,7 +19,7 @@ async function fixedTransfer() {
     const keyring = new Keyring({ type: 'sr25519' });
     const alice = keyring.addFromUri('//Alice');
     
-    const dest = '5GLnRpaqTZkDkk45ZkHw2DwZziem1RoPDSBhQoPHviK7yFqg';
+    const dest = '5HC5oqDDQZLgPRQmzt7LgW9TZodGJb4mT5oSw6nwJYF7ASoD';
     const amount = '10000000000000';
     
     console.log(`Sending ${amount} from Alice to destination`);

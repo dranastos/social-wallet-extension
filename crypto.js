@@ -259,30 +259,51 @@ class NostrCrypto {
             .join('');
     }
 
-    // Convert NOSTR private key to Substrate SS58 address
+    // Convert NOSTR private key to Substrate SS58 address using OFFICIAL Polkadot.js library
     static async convertNostrToSubstrate(nsec, addressType = 42) {
         try {
-            // Step 1: Decode nsec to secp256k1 private key using working function
-            const secpPrivate = decodeNsec(nsec);
-            if (secpPrivate === null) {
+            // Step 1: Decode nsec to secp256k1 private key
+            const { prefix, data } = this.decodeBech32(nsec);
+            if (prefix !== 'nsec') {
                 return { error: "Invalid nsec format" };
             }
             
+            const secpPrivate = data;
             if (secpPrivate.length !== 32) {
                 return { error: `Invalid private key length: ${secpPrivate.length} bytes` };
             }
             
-            // Step 2: Derive ed25519 keypair from secp256k1 private key
-            const [ed25519Private, ed25519Public] = await deriveEd25519Keypair(secpPrivate);
+            // Step 2: Derive ed25519 keypair from secp256k1 private key using same logic as before
+            const encoder = new TextEncoder();
+            const hashInput = new Uint8Array(secpPrivate.length + encoder.encode('ed25519_substrate').length);
+            hashInput.set(secpPrivate, 0);
+            hashInput.set(encoder.encode('ed25519_substrate'), secpPrivate.length);
             
-            // Step 3: Generate SS58 address (await since it returns a Promise)
-            const ss58Address = await ss58Encode(ed25519Public, addressType);
+            const hashArrayBuffer = await crypto.subtle.digest('SHA-256', hashInput);
+            const hashArray = new Uint8Array(hashArrayBuffer);
+            
+            // First 32 bytes become the private scalar
+            const ed25519Private = new Uint8Array(hashArray.slice(0, 32));
+            
+            // Clamp the private scalar (ed25519 requirement)
+            ed25519Private[0] &= 248;
+            ed25519Private[31] &= 127;
+            ed25519Private[31] |= 64;
+            
+            // Step 3: Use OFFICIAL Polkadot.js Keyring to generate the SS58 address
+            if (!window.polkadotApi || !window.polkadotApi.Keyring) {
+                return { error: 'Polkadot API not available. Cannot generate correct SS58 address.' };
+            }
+            
+            const { Keyring } = window.polkadotApi;
+            const keyring = new Keyring({ type: 'ed25519', ss58Format: addressType });
+            const keyPair = keyring.addFromSeed(ed25519Private);
+            const ss58Address = keyPair.address;
             
             return {
                 nsec: nsec,
                 secp256k1_private: Array.from(secpPrivate).map(b => b.toString(16).padStart(2, '0')).join(''),
-                ed25519_private: Array.from(ed25519Private).map(b => b.toString(16).padStart(2, '0')).join(''),
-                ed25519_public: Array.from(ed25519Public).map(b => b.toString(16).padStart(2, '0')).join(''),
+                substrate_private_key: Array.from(ed25519Private).map(b => b.toString(16).padStart(2, '0')).join(''),
                 ss58_address: ss58Address,
                 address_type: addressType
             };
@@ -294,243 +315,6 @@ class NostrCrypto {
 
 }
 
-// BLAKE2b implementation for SS58 checksum calculation
-// Use global blake2b if available (for testing), otherwise FAIL
-function getBlake2b() {
-    if (typeof blake2b !== 'undefined') {
-        return blake2b;
-    } else if (typeof global !== 'undefined' && global.blake2b) {
-        return global.blake2b;
-    } else {
-        // FAIL if BLAKE2b not available - don't silently produce wrong addresses!
-        throw new Error('BLAKE2b library not available! Cannot generate correct SS58 addresses without BLAKE2b. Please include the blake2b library.');
-    }
-}
-
-// Utility functions for NOSTR to Substrate conversion (copied from working converttoss58.js)
-function base58Encode(data) {
-    const alphabet = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
-    
-    // Convert to BigInt
-    let num = BigInt(0);
-    for (let i = 0; i < data.length; i++) {
-        num = num * BigInt(256) + BigInt(data[i]);
-    }
-    
-    if (num === BigInt(0)) {
-        return alphabet[0];
-    }
-    
-    let result = "";
-    while (num > BigInt(0)) {
-        const remainder = num % BigInt(58);
-        num = num / BigInt(58);
-        result = alphabet[Number(remainder)] + result;
-    }
-    
-    // Handle leading zeros
-    for (let i = 0; i < data.length; i++) {
-        if (data[i] === 0) {
-            result = alphabet[0] + result;
-        } else {
-            break;
-        }
-    }
-    
-    return result;
-}
-
-function bech32Polymod(values) {
-    const GEN = [0x3b6a57b2, 0x26508e6d, 0x1ea119fa, 0x3d4233dd, 0x2a1462b3];
-    let chk = 1;
-    
-    for (const value of values) {
-        const top = chk >> 25;
-        chk = (chk & 0x1ffffff) << 5 ^ value;
-        for (let i = 0; i < 5; i++) {
-            chk ^= ((top >> i) & 1) ? GEN[i] : 0;
-        }
-    }
-    return chk;
-}
-
-function bech32HrpExpand(hrp) {
-    const high = [];
-    const low = [];
-    
-    for (const char of hrp) {
-        const code = char.charCodeAt(0);
-        high.push(code >> 5);
-        low.push(code & 31);
-    }
-    
-    return [...high, 0, ...low];
-}
-
-function bech32VerifyChecksum(hrp, data) {
-    return bech32Polymod([...bech32HrpExpand(hrp), ...data]) === 1;
-}
-
-function bech32Decode(bech) {
-    // Check for invalid characters
-    if (bech.split('').some(char => {
-        const code = char.charCodeAt(0);
-        return code < 33 || code > 126;
-    })) {
-        return [null, null];
-    }
-    
-    // Check for mixed case
-    if (bech.toLowerCase() !== bech && bech.toUpperCase() !== bech) {
-        return [null, null];
-    }
-    
-    bech = bech.toLowerCase();
-    const pos = bech.lastIndexOf('1');
-    
-    if (pos < 1 || pos + 7 > bech.length || pos + 1 + 6 > bech.length) {
-        return [null, null];
-    }
-    
-    const charset = "qpzry9x8gf2tvdw0s3jn54khce6mua7l";
-    const dataSection = bech.slice(pos + 1);
-    
-    // Check if all characters are valid
-    if (!dataSection.split('').every(char => charset.includes(char))) {
-        return [null, null];
-    }
-    
-    const hrp = bech.slice(0, pos);
-    const data = dataSection.split('').map(char => charset.indexOf(char));
-    
-    if (!bech32VerifyChecksum(hrp, data)) {
-        return [null, null];
-    }
-    
-    return [hrp, data.slice(0, -6)];
-}
-
-function convertBits(data, fromBits, toBits, pad = true) {
-    let acc = 0;
-    let bits = 0;
-    const ret = [];
-    const maxv = (1 << toBits) - 1;
-    const maxAcc = (1 << (fromBits + toBits - 1)) - 1;
-    
-    for (const value of data) {
-        if (value < 0 || (value >> fromBits)) {
-            return null;
-        }
-        acc = ((acc << fromBits) | value) & maxAcc;
-        bits += fromBits;
-        
-        while (bits >= toBits) {
-            bits -= toBits;
-            ret.push((acc >> bits) & maxv);
-        }
-    }
-    
-    if (pad) {
-        if (bits) {
-            ret.push((acc << (toBits - bits)) & maxv);
-        }
-    } else if (bits >= fromBits || ((acc << (toBits - bits)) & maxv)) {
-        return null;
-    }
-    
-    return ret;
-}
-
-function decodeNsec(nsec) {
-    const [hrp, data] = bech32Decode(nsec);
-    if (hrp !== "nsec" || data === null) {
-        return null;
-    }
-    
-    const converted = convertBits(data, 5, 8, false);
-    if (converted === null) {
-        return null;
-    }
-    
-    return new Uint8Array(converted);
-}
-
-async function deriveEd25519Keypair(seed) {
-    // Use HMAC-SHA512 for key derivation (same as working file)
-    const encoder = new TextEncoder();
-    const key = await crypto.subtle.importKey(
-        'raw',
-        encoder.encode('ed25519 seed'),
-        { name: 'HMAC', hash: 'SHA-512' },
-        false,
-        ['sign']
-    );
-    
-    const h = await crypto.subtle.sign('HMAC', key, seed);
-    const hashArray = new Uint8Array(h);
-    
-    // First 32 bytes become the private scalar
-    const privateScalar = new Uint8Array(hashArray.slice(0, 32));
-    
-    // Clamp the private scalar (ed25519 requirement)
-    privateScalar[0] &= 248;
-    privateScalar[31] &= 127;
-    privateScalar[31] |= 64;
-    
-    // For public key, use same method as working file
-    const publicKeyString = 'ed25519_public';
-    const publicKeyStringBytes = encoder.encode(publicKeyString);
-    const publicKeyInput = new Uint8Array(privateScalar.length + publicKeyStringBytes.length);
-    publicKeyInput.set(privateScalar, 0);
-    publicKeyInput.set(publicKeyStringBytes, privateScalar.length);
-    
-    const publicKeyHash = await crypto.subtle.digest('SHA-256', publicKeyInput);
-    const publicKey = new Uint8Array(publicKeyHash);
-    
-    return [privateScalar, publicKey];
-}
-
-async function ss58Encode(publicKey, addressType = 42) {
-    if (publicKey.length !== 32) {
-        throw new Error("Public key must be 32 bytes");
-    }
-    
-    let prefix;
-    if (addressType < 64) {
-        prefix = new Uint8Array([addressType]);
-    } else if (addressType < 16384) {
-        // Two-byte encoding for types 64-16383
-        prefix = new Uint8Array([
-            ((addressType & 0x3f) | 0x40),
-            (addressType >> 6) & 0xff
-        ]);
-    } else {
-        throw new Error("Address type too large");
-    }
-    
-    // Create payload
-    const payload = new Uint8Array(prefix.length + publicKey.length);
-    payload.set(prefix, 0);
-    payload.set(publicKey, prefix.length);
-    
-    // Calculate checksum using BLAKE2b for exact SS58 compatibility
-    const ss58Prefix = new TextEncoder().encode('SS58PRE');
-    const checksumInput = new Uint8Array(ss58Prefix.length + payload.length);
-    checksumInput.set(ss58Prefix, 0);
-    checksumInput.set(payload, ss58Prefix.length);
-    
-    // Use BLAKE2b for exact SS58 checksum calculation
-    const blake2bFunc = getBlake2b();
-    const blake2bDigest = blake2bFunc(checksumInput, null, 64);
-    
-    // Take first 2 bytes of checksum
-    const finalBytes = new Uint8Array(payload.length + 2);
-    finalBytes.set(payload, 0);
-    finalBytes.set(blake2bDigest.slice(0, 2), payload.length);
-    
-    // Base58 encode
-    return base58Encode(finalBytes);
-}
 
 // UI Functions
 let currentKeyPair = null;
