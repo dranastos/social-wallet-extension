@@ -132,9 +132,18 @@
                             </div>
 
                             <div class="input-group">
-                                <label for="banner">Banner Image URL</label>
-                                <input type="url" id="banner" name="banner" placeholder="https://yourdomain.com/banner.jpg">
+                                <label for="banner">Banner Image</label>
+                                <div class="picture-upload-section">
+                                    <input type="file" id="banner-file" name="bannerFile" accept="image/*" class="file-input">
+                                    <button type="button" id="upload-banner-btn" class="btn btn-upload">Choose Image</button>
+                                    <span id="banner-filename" class="filename-display">No file chosen</span>
+                                </div>
+                                <div class="upload-preview">
+                                    <img id="banner-preview" class="preview-img hidden" alt="Banner image preview">
+                                </div>
+                                <input type="url" id="banner" name="banner" placeholder="Or enter image URL" class="url-fallback">
                                 <div class="validation-message"></div>
+                                <div class="help-text">Upload an image file or enter a URL</div>
                             </div>
 
                             <div class="input-group">

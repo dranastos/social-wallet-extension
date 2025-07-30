@@ -20,11 +20,13 @@ body {
   box-shadow: 0 8px 32px rgba(0, 170, 255, 0.1), 0 0 0 1px rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(0, 170, 255, 0.2);
   margin: 4px;
-  height: calc(100vh - 8px);
+  min-height: calc(100vh - 8px);
+  display: flex;
+  flex-direction: column;
 }
 
 .header {
-  margin-bottom: 8px;
+  margin-bottom: 4px;
   text-align: center;
   display: flex;
   align-items: center;
@@ -36,7 +38,7 @@ body {
   align-items: center;
   justify-content: center;
   gap: 12px;
-  margin-bottom: 8px;
+  margin-bottom: 4px;
 }
 
 .logo h1 {
@@ -70,6 +72,10 @@ body {
 
 .content {
   text-align: left;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
 }
 
 .section {
@@ -78,20 +84,20 @@ body {
 
 .empty-state {
   text-align: center;
-  padding: 20px;
+  padding: 8px 20px;
 }
 
 .empty-state h2 {
   color: #ffffff;
   font-size: 20px;
-  margin: 16px 0 8px 0;
+  margin: 8px 0 8px 0;
 }
 
 .empty-state p {
   color: #a0a0a0;
   font-size: 14px;
   line-height: 1.5;
-  margin-bottom: 24px;
+  margin-bottom: 16px;
 }
 
 .identity-info h2 {
@@ -439,7 +445,7 @@ details[open] summary::before {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  margin: 20px 0;
+  margin: 8px 0;
 }
 
 .balance-section {

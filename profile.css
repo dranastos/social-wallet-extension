@@ -473,10 +473,33 @@ body {
 
 /* File Upload Styles */
 .picture-upload-section {
-    display: flex;
+    display: flex !important;
     align-items: center;
     gap: 12px;
     margin-bottom: 8px;
+}
+
+/* Ensure banner upload elements are visible */
+#upload-banner-btn {
+    display: inline-block !important;
+    visibility: visible !important;
+}
+
+#banner-filename {
+    display: inline-block !important;
+    visibility: visible !important;
+}
+
+#banner-file {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
 }
 
 .file-input {

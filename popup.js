@@ -29,11 +29,9 @@ document.addEventListener('DOMContentLoaded', function() {
     setupEventListeners();
 });
 
-// Initialize SlideChain balance instance
-let slideChainBalance = null;
-
-// Initialize SlideChain transfer instance
-let slideChainTransfer = null;
+// Initialize SlideChain instances on window object to avoid duplicate declarations
+window.slideChainBalance = null;
+window.slideChainTransfer = null;
 
 // Initialize balance functionality when DOM is ready
 function initializeBalance() {
@@ -41,11 +39,11 @@ function initializeBalance() {
     
     // Use the main SlideChainBalance class (has real implementation)
     if (typeof SlideChainBalance !== 'undefined') {
-        slideChainBalance = new SlideChainBalance();
+        window.slideChainBalance = new SlideChainBalance();
         console.log('🔍 DEBUG: SlideChainBalance class found and initialized');
         console.log('SlideChainBalance initialized');
     } else if (typeof SimpleSlideChainBalance !== 'undefined') {
-        slideChainBalance = new SimpleSlideChainBalance();
+        window.slideChainBalance = new SimpleSlideChainBalance();
         console.log('🔍 DEBUG: SimpleSlideChainBalance initialized (fallback)');
         console.log('SimpleSlideChainBalance initialized (fallback)');
     } else {
@@ -60,7 +58,7 @@ function initializeTransfer() {
     console.log('🔍 DEBUG: initializeTransfer called');
     
     if (typeof SlideChainTransfer !== 'undefined') {
-        slideChainTransfer = new SlideChainTransfer();
+        window.slideChainTransfer = new SlideChainTransfer();
         console.log('🔍 DEBUG: SlideChainTransfer class found and initialized');
     } else {
         console.warn('SlideChainTransfer class not available');
@@ -69,7 +67,7 @@ function initializeTransfer() {
 
 // Handle the click event of the "Send Transfer" button
 async function handleSendTransfer() {
-    if (!slideChainTransfer) {
+    if (!window.slideChainTransfer) {
         updateTransferStatus('Transfer module not initialized', 'error');
         return;
     }
@@ -95,7 +93,7 @@ async function handleSendTransfer() {
         }
 
         // Perform the transfer (function will create keypair internally using same logic as popup)
-        const transferResult = await slideChainTransfer.transfer(
+        const transferResult = await window.slideChainTransfer.transfer(
             result.nostr_nsec,
             toAddress,
             amount,
@@ -154,14 +152,13 @@ function updateTransferStatus(message, type) {
     }
 }
 
-let currentIdentity = null;
+// Initialize currentIdentity on window object to avoid duplicate declarations
+window.currentIdentity = null;
 
 function setupEventListeners() {
     // Main action buttons
     document.getElementById('generate-identity').addEventListener('click', generateNewIdentity);
     document.getElementById('import-identity').addEventListener('click', showImportForm);
-    document.getElementById('import-confirm').addEventListener('click', importIdentity);
-    document.getElementById('import-cancel').addEventListener('click', hideImportForm);
     document.getElementById('log-back-in').addEventListener('click', logBackIn);
     
     // Settings panel
@@ -182,6 +179,8 @@ function setupEventListeners() {
     document.getElementById('about').addEventListener('input', updateCharCount);
     document.getElementById('upload-picture-btn').addEventListener('click', triggerFileUpload);
     document.getElementById('picture-file').addEventListener('change', handleFileUpload);
+    document.getElementById('upload-banner-btn').addEventListener('click', triggerBannerFileUpload);
+    document.getElementById('banner-file').addEventListener('change', handleBannerFileUpload);
     
     // Key management
     document.getElementById('copy-public').addEventListener('click', () => copyToClipboard('public-key'));
@@ -225,7 +224,7 @@ async function generateNewIdentity() {
         }
         
         // Store identity data for popup display
-        currentIdentity = {
+        window.currentIdentity = {
             privateKey: response.result.nsec,
             publicKey: response.result.npub,
             publicKeyHex: response.result.publicKey,
@@ -251,12 +250,14 @@ async function generateNewIdentity() {
 }
 
 function showImportForm() {
-    document.getElementById('import-form').classList.remove('hidden');
+    // Redirect to dedicated import page
+    window.location.href = 'import.html';
 }
 
 function hideImportForm() {
-    document.getElementById('import-form').classList.add('hidden');
-    document.getElementById('private-key-input').value = '';
+    // This function is no longer used since we redirect to import page
+    // Keeping for backward compatibility
+    window.location.href = 'popup.html';
 }
 
 async function importIdentity() {
@@ -293,7 +294,7 @@ async function importIdentity() {
         // Keys are already stored by the background script, no need to store again
         
         // Store identity data for popup display
-        currentIdentity = {
+        window.currentIdentity = {
             privateKey: nsec,
             publicKey: npub,
             publicKeyHex: publicKeyHex,
@@ -312,8 +313,8 @@ async function importIdentity() {
         setTimeout(async () => {
             try {
                 updateStatus('Fetching profile data from NOSTR relays...', 'loading');
-                const profileData = await NostrUtils.fetchProfileFromRelays(currentIdentity.publicKeyHex);
-                const chainmagicId = await NostrUtils.checkChainmagicIds(currentIdentity.publicKeyHex);
+                const profileData = await NostrUtils.fetchProfileFromRelays(window.currentIdentity.publicKeyHex);
+                const chainmagicId = await NostrUtils.checkChainmagicIds(window.currentIdentity.publicKeyHex);
                 
                 if (profileData && (profileData.name || profileData.about || profileData.picture)) {
                     // Update the profile display with fetched data
@@ -400,7 +401,7 @@ async function loadIdentity() {
                         }, resolve);
                     });
                     
-                    currentIdentity = {
+                    window.currentIdentity = {
                         privateKey: result.nostr_nsec,
                         publicKey: npub,
                         publicKeyHex: publicKeyHex,
@@ -410,7 +411,7 @@ async function loadIdentity() {
                     };
                 } else {
                     // Public key is already correct
-                    currentIdentity = {
+                    window.currentIdentity = {
                         privateKey: result.nostr_nsec,
                         publicKey: result.nostr_npub,
                         publicKeyHex: result.nostr_public_key,
@@ -422,7 +423,7 @@ async function loadIdentity() {
             } catch (error) {
                 console.error('Error regenerating public key with correct method:', error);
                 // Fallback to stored values (might be incorrect but better than crashing)
-                currentIdentity = {
+                window.currentIdentity = {
                     privateKey: result.nostr_nsec,
                     publicKey: result.nostr_npub,
                     publicKeyHex: result.nostr_public_key,
@@ -435,7 +436,7 @@ async function loadIdentity() {
             // Fetch profile data from NOSTR relays
             try {
                 updateStatus('Fetching profile data from NOSTR relays...', 'loading');
-                const profileData = await NostrUtils.fetchProfileFromRelays(currentIdentity.publicKeyHex);
+                const profileData = await NostrUtils.fetchProfileFromRelays(window.currentIdentity.publicKeyHex);
                 
                 if (profileData && (profileData.name || profileData.about || profileData.picture)) {
                     updateProfileDisplay(profileData);
@@ -451,7 +452,7 @@ async function loadIdentity() {
             displayIdentity();
             
             // Show when the identity was created
-            const createdDate = new Date(currentIdentity.createdAt).toLocaleString();
+            const createdDate = new Date(window.currentIdentity.createdAt).toLocaleString();
             updateStatus(`Crypto-secure identity loaded (created: ${createdDate})`, 'success');
         } else {
             showNoIdentity();
@@ -465,15 +466,15 @@ async function loadIdentity() {
 }
 
 async function displayIdentity() {
-    if (!currentIdentity) return;
+    if (!window.currentIdentity) return;
     
     document.getElementById('no-identity').classList.add('hidden');
     document.getElementById('has-identity').classList.remove('hidden');
     
     // Populate key fields
-    document.getElementById('public-key').value = currentIdentity.publicKey || '';
-    document.getElementById('public-key-hex').value = currentIdentity.publicKeyHex || '';
-    document.getElementById('private-key').value = currentIdentity.privateKey || '';
+    document.getElementById('public-key').value = window.currentIdentity.publicKey || '';
+    document.getElementById('public-key-hex').value = window.currentIdentity.publicKeyHex || '';
+    document.getElementById('private-key').value = window.currentIdentity.privateKey || '';
     
     // Generate and display SlideChain address
     await generateSlidechainAddress();
@@ -657,31 +658,35 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 // Auto-fetch balance when SlideChain address is generated (wrapped in setTimeout to avoid immediate call issues)
-const originalGenerateSlidechainAddressWrapper = generateSlidechainAddress;
-generateSlidechainAddress = async function() {
-    await originalGenerateSlidechainAddressWrapper.apply(this, arguments);
-    
-    // Fetch balance after address is generated
-    setTimeout(() => {
-        fetchAndDisplayBalance();
-    }, 1000);
-};
+if (!window.originalGenerateSlidechainAddressWrapper) {
+    window.originalGenerateSlidechainAddressWrapper = generateSlidechainAddress;
+    generateSlidechainAddress = async function() {
+        await window.originalGenerateSlidechainAddressWrapper.apply(this, arguments);
+        
+        // Fetch balance after address is generated
+        setTimeout(() => {
+            fetchAndDisplayBalance();
+        }, 1000);
+    };
+}
 
 // Auto-fetch balance when identity is loaded (wrapped in setTimeout to avoid immediate call issues)
-const originalDisplayIdentityWrapper = displayIdentity;
-displayIdentity = async function() {
-    await originalDisplayIdentityWrapper.apply(this, arguments);
-    
-    // Fetch balance after identity is displayed
-    setTimeout(() => {
-        fetchAndDisplayBalance();
-    }, 1500);
-};
+if (!window.originalDisplayIdentityWrapper) {
+    window.originalDisplayIdentityWrapper = displayIdentity;
+    displayIdentity = async function() {
+        await window.originalDisplayIdentityWrapper.apply(this, arguments);
+        
+        // Fetch balance after identity is displayed
+        setTimeout(() => {
+            fetchAndDisplayBalance();
+        }, 1500);
+    };
+}
 
 // ... rest of your original functions (testSignature, runFullCryptoTests, etc.) unchanged ...
 
 async function testSignature() {
-    if (!currentIdentity) {
+    if (!window.currentIdentity) {
         updateStatus('No identity to test', 'error');
         return;
     }
@@ -790,7 +795,7 @@ async function testSignature() {
 }
 
 async function runFullCryptoTests() {
-    if (!currentIdentity) {
+    if (!window.currentIdentity) {
         updateStatus('No identity to test', 'error');
         return;
     }
@@ -851,7 +856,7 @@ async function runFullCryptoTests() {
 }
 
 async function testRelayPost() {
-    if (!currentIdentity) {
+    if (!window.currentIdentity) {
         updateStatus('No identity to test', 'error');
         return;
     }
@@ -1115,7 +1120,7 @@ async function logBackIn() {
         });
         
         // Restore current identity from saved keys
-        currentIdentity = {
+        window.currentIdentity = {
             privateKey: result.nostr_nsec,
             publicKey: result.nostr_npub,
             publicKeyHex: result.nostr_public_key,
@@ -1130,7 +1135,7 @@ async function logBackIn() {
         // Fetch profile data from relays
         try {
             updateStatus('Fetching profile data from NOSTR relays...', 'loading');
-            const profileData = await NostrUtils.fetchProfileFromRelays(currentIdentity.publicKeyHex);
+            const profileData = await NostrUtils.fetchProfileFromRelays(window.currentIdentity.publicKeyHex);
             
             if (profileData && (profileData.name || profileData.about || profileData.picture)) {
                 updateProfileDisplay(profileData);
@@ -1172,7 +1177,7 @@ async function logoutIdentity() {
         }
         
         // Clear current identity from popup (but keys remain in storage)
-        currentIdentity = null;
+        window.currentIdentity = null;
         showNoIdentity();
         updateStatus('Logged out successfully. Keys remain saved for future login.', 'success');
         
@@ -1194,7 +1199,7 @@ async function clearIdentity() {
                 chrome.storage.local.clear(resolve);
             });
             
-            currentIdentity = null;
+            window.currentIdentity = null;
             showNoIdentity();
             updateStatus('Identity cleared', 'info');
             
@@ -1244,7 +1249,7 @@ async function copyToClipboard(elementId) {
 }
 
 function openProfileConfig() {
-    if (!currentIdentity) {
+    if (!window.currentIdentity) {
         updateStatus('Generate an identity first before creating a profile', 'warning');
         return;
     }
@@ -1255,7 +1260,7 @@ function openProfileConfig() {
 }
 
 function showProfileEditor() {
-    if (!currentIdentity) {
+    if (!window.currentIdentity) {
         updateStatus('Generate an identity first before editing a profile', 'warning');
         return;
     }
@@ -1368,6 +1373,27 @@ async function loadProfileData() {
             filenameDisplay.textContent = 'No file chosen';
         }
         
+        // Handle banner preview
+        const bannerPreview = document.getElementById('banner-preview');
+        const bannerFilenameDisplay = document.getElementById('banner-filename');
+        
+        if (profile.banner) {
+            bannerPreview.src = profile.banner;
+            bannerPreview.classList.remove('hidden');
+            
+            // Check if it's an IPFS URL or regular URL
+            if (profile.banner.includes('ipfs') || profile.banner.includes('chainmagic.studio')) {
+                bannerFilenameDisplay.textContent = 'Banner from IPFS';
+            } else if (profile.banner.startsWith('data:')) {
+                bannerFilenameDisplay.textContent = 'Uploaded banner';
+            } else {
+                bannerFilenameDisplay.textContent = 'Banner from URL';
+            }
+        } else {
+            bannerPreview.classList.add('hidden');
+            bannerFilenameDisplay.textContent = 'No file chosen';
+        }
+        
         // Update character count for bio
         updateCharCount();
         
@@ -1412,6 +1438,10 @@ async function uploadImageToIPFS(file) {
 
 function triggerFileUpload() {
     document.getElementById('picture-file').click();
+}
+
+function triggerBannerFileUpload() {
+    document.getElementById('banner-file').click();
 }
 
 async function handleFileUpload(event) {
@@ -1470,9 +1500,65 @@ async function handleFileUpload(event) {
     }
 }
 
+async function handleBannerFileUpload(event) {
+    const file = event.target.files[0];
+    const filenameDisplay = document.getElementById('banner-filename');
+    const preview = document.getElementById('banner-preview');
+    const urlInput = document.getElementById('banner');
+    
+    if (file) {
+        // Validate file type
+        if (!file.type.startsWith('image/')) {
+            updateStatus('Please select a valid image file', 'error');
+            return;
+        }
+        
+        // Validate file size (limit to 5MB)
+        if (file.size > 5 * 1024 * 1024) {
+            updateStatus('Banner image file too large. Please choose a file under 5MB', 'error');
+            return;
+        }
+        
+        // Update filename display and show loading
+        filenameDisplay.textContent = 'Uploading banner to IPFS...';
+        updateStatus('Uploading banner image to IPFS...', 'loading');
+        
+        try {
+            // Upload to IPFS
+            const ipfsUrl = await uploadImageToIPFS(file);
+            
+            // Show preview with IPFS URL
+            preview.src = ipfsUrl;
+            preview.classList.remove('hidden');
+            
+            // Store the IPFS URL in the URL input
+            urlInput.value = ipfsUrl;
+            
+            // Update filename display
+            filenameDisplay.textContent = file.name + ' (IPFS)';
+            
+            updateStatus('Banner image uploaded to IPFS successfully', 'success');
+        } catch (error) {
+            console.error('Banner IPFS upload error:', error);
+            updateStatus('Failed to upload banner image to IPFS: ' + error.message, 'error');
+            
+            // Reset on error
+            filenameDisplay.textContent = 'No file chosen';
+            preview.classList.add('hidden');
+            preview.src = '';
+            urlInput.value = '';
+        }
+    } else {
+        // Reset if no file selected
+        filenameDisplay.textContent = 'No file chosen';
+        preview.classList.add('hidden');
+        preview.src = '';
+    }
+}
+
 async function saveProfile() {
     try {
-        if (!currentIdentity) {
+        if (!window.currentIdentity) {
             updateStatus('No identity available to save profile', 'error');
             return;
         }
@@ -1487,7 +1573,7 @@ async function saveProfile() {
             banner: document.getElementById('banner').value.trim(),
             nip05: document.getElementById('nip05').value.trim(),
             baseAddr: document.getElementById('base-addr').value.trim(),
-            pubkey: currentIdentity.publicKeyHex,
+            pubkey: window.currentIdentity.publicKeyHex,
             updated_at: Math.floor(Date.now() / 1000)
         };
         
@@ -1731,7 +1817,7 @@ async function loadProfileDisplay() {
         });
         
         // Always check for NIP-05 from chainmagic, regardless of profile data
-        const publicKeyHex = currentIdentity ? currentIdentity.publicKeyHex : null;
+        const publicKeyHex = window.currentIdentity ? window.currentIdentity.publicKeyHex : null;
         const chainmagicNip05 = publicKeyHex ? await NostrUtils.checkChainmagicIds(publicKeyHex) : null;
         const nip05Display = document.getElementById('profile-nip05');
         
@@ -1791,16 +1877,16 @@ async function loadProfileDisplay() {
 
 // Export Keys Function
 async function exportKeys() {
-    if (!currentIdentity) {
+    if (!window.currentIdentity) {
         updateStatus('No identity to export', 'error');
         return;
     }
     
     const keyData = {
-        publicKey: currentIdentity.publicKey,
-        privateKey: currentIdentity.privateKey,
-        publicKeyHex: currentIdentity.publicKeyHex,
-        createdAt: new Date(currentIdentity.createdAt).toISOString()
+        publicKey: window.currentIdentity.publicKey,
+        privateKey: window.currentIdentity.privateKey,
+        publicKeyHex: window.currentIdentity.publicKeyHex,
+        createdAt: new Date(window.currentIdentity.createdAt).toISOString()
     };
     
     const dataStr = JSON.stringify(keyData, null, 2);
@@ -1943,7 +2029,7 @@ async function publishToSingleRelay(relayUrl, signedEvent) {
 
 // Publish Profile to Relays
 async function publishProfileToRelays() {
-    if (!currentIdentity) {
+    if (!window.currentIdentity) {
         updateStatus('No identity found', 'error');
         return;
     }
@@ -2024,7 +2110,7 @@ function injectContentScript() {
 // Extension status check - tells web pages if extension is available
 function checkExtensionStatus() {
     // This should be called periodically to maintain connection
-    if (currentIdentity && currentIdentity.publicKeyHex) {
+    if (window.currentIdentity && window.currentIdentity.publicKeyHex) {
         // Send status to any listening web pages
         chrome.tabs.query({}, function(tabs) {
             tabs.forEach(tab => {
@@ -2032,7 +2118,7 @@ function checkExtensionStatus() {
                     chrome.tabs.sendMessage(tab.id, {
                         type: 'EXTENSION_STATUS',
                         status: 'connected',
-                        publicKey: currentIdentity.publicKeyHex,
+                        publicKey: window.currentIdentity.publicKeyHex,
                         displayName: getActualDisplayName()
                     }).catch(() => {
                         // Tab might not have content script, ignore error
@@ -2045,7 +2131,7 @@ function checkExtensionStatus() {
 
 // Get actual display name for the current identity
 function getActualDisplayName() {
-    if (!currentIdentity) return 'Anonymous';
+    if (!window.currentIdentity) return 'Anonymous';
     
     // Try to get display name from stored profile data
     chrome.storage.local.get(['profileData'], (result) => {
@@ -2055,8 +2141,8 @@ function getActualDisplayName() {
     });
     
     // Fallback to shortened public key
-    if (currentIdentity.publicKeyHex) {
-        return `@${currentIdentity.publicKeyHex.slice(0, 8)}...${currentIdentity.publicKeyHex.slice(-4)}`;
+    if (window.currentIdentity.publicKeyHex) {
+        return `@${window.currentIdentity.publicKeyHex.slice(0, 8)}...${window.currentIdentity.publicKeyHex.slice(-4)}`;
     }
     
     return 'Anonymous';
@@ -2068,10 +2154,10 @@ function handleWebPageMessage(message, sender, sendResponse) {
     
     switch (message.type) {
         case 'GET_PUBLIC_KEY':
-            if (currentIdentity && currentIdentity.publicKeyHex) {
+            if (window.currentIdentity && window.currentIdentity.publicKeyHex) {
                 sendResponse({
                     success: true,
-                    publicKey: currentIdentity.publicKeyHex,
+                    publicKey: window.currentIdentity.publicKeyHex,
                     displayName: getActualDisplayName()
                 });
             } else {
@@ -2083,7 +2169,7 @@ function handleWebPageMessage(message, sender, sendResponse) {
             break;
             
         case 'SIGN_EVENT':
-            if (currentIdentity && currentIdentity.privateKey) {
+            if (window.currentIdentity && window.currentIdentity.privateKey) {
                 // Send to background script for signing
                 chrome.runtime.sendMessage({
                     type: 'NOSTR_REQUEST',
@@ -2104,8 +2190,8 @@ function handleWebPageMessage(message, sender, sendResponse) {
         case 'GET_STATUS':
             sendResponse({
                 success: true,
-                isLoggedIn: !!currentIdentity,
-                publicKey: currentIdentity?.publicKeyHex || null,
+                isLoggedIn: !!window.currentIdentity,
+                publicKey: window.currentIdentity?.publicKeyHex || null,
                 displayName: getActualDisplayName(),
                 extensionVersion: chrome.runtime.getManifest().version
             });
@@ -2124,7 +2210,7 @@ chrome.runtime.onMessage.addListener(handleWebPageMessage);
 
 // Periodically broadcast extension status
 setInterval(() => {
-    if (currentIdentity) {
+    if (window.currentIdentity) {
         checkExtensionStatus();
     }
 }, 5000); // Every 5 seconds
@@ -2136,52 +2222,60 @@ function notifyIdentityChange() {
     // Also update any open extension popups
     chrome.runtime.sendMessage({
         type: 'IDENTITY_CHANGED',
-        identity: currentIdentity
+        identity: window.currentIdentity
     }).catch(() => {
         // No listeners, ignore
     });
 }
 
 // Modify your existing loadIdentity function to include notification
-const originalLoadIdentity = loadIdentity;
-loadIdentity = async function() {
-    await originalLoadIdentity.apply(this, arguments);
-    
-    // Notify web pages after identity is loaded
-    setTimeout(() => {
-        notifyIdentityChange();
-    }, 1000);
-};
+if (!window.originalLoadIdentity) {
+    window.originalLoadIdentity = loadIdentity;
+    loadIdentity = async function() {
+        await window.originalLoadIdentity.apply(this, arguments);
+        
+        // Notify web pages after identity is loaded
+        setTimeout(() => {
+            notifyIdentityChange();
+        }, 1000);
+    };
+}
 
 // Modify your existing logout function to include notification
-const originalLogoutIdentity = logoutIdentity;
-logoutIdentity = async function() {
-    await originalLogoutIdentity.apply(this, arguments);
-    
-    // Notify web pages after logout
-    setTimeout(() => {
-        notifyIdentityChange();
-    }, 500);
-};
+if (!window.originalLogoutIdentity) {
+    window.originalLogoutIdentity = logoutIdentity;
+    logoutIdentity = async function() {
+        await window.originalLogoutIdentity.apply(this, arguments);
+        
+        // Notify web pages after logout
+        setTimeout(() => {
+            notifyIdentityChange();
+        }, 500);
+    };
+}
 
 // Add to your existing generateNewIdentity function
-const originalGenerateNewIdentity = generateNewIdentity;
-generateNewIdentity = async function() {
-    await originalGenerateNewIdentity.apply(this, arguments);
-    
-    // Notify web pages after new identity is generated
-    setTimeout(() => {
-        notifyIdentityChange();
-    }, 1000);
-};
+if (!window.originalGenerateNewIdentity) {
+    window.originalGenerateNewIdentity = generateNewIdentity;
+    generateNewIdentity = async function() {
+        await window.originalGenerateNewIdentity.apply(this, arguments);
+        
+        // Notify web pages after new identity is generated
+        setTimeout(() => {
+            notifyIdentityChange();
+        }, 1000);
+    };
+}
 
 // Add to your existing importIdentity function
-const originalImportIdentity = importIdentity;
-importIdentity = async function() {
-    await originalImportIdentity.apply(this, arguments);
-    
-    // Notify web pages after identity is imported
-    setTimeout(() => {
-        notifyIdentityChange();
-    }, 1000);
-};
+if (!window.originalImportIdentity) {
+    window.originalImportIdentity = importIdentity;
+    importIdentity = async function() {
+        await window.originalImportIdentity.apply(this, arguments);
+        
+        // Notify web pages after identity is imported
+        setTimeout(() => {
+            notifyIdentityChange();
+        }, 1000);
+    };
+}

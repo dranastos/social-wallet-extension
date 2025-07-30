@@ -215,6 +215,7 @@ async function uploadImageToIPFS(file) {
 
 // Setup file upload functionality
 function setupFileUpload() {
+    // Profile picture upload setup
     const fileInput = document.getElementById('picture-file');
     const uploadBtn = document.getElementById('upload-picture-btn');
     const filenameDisplay = document.getElementById('picture-filename');
@@ -239,6 +240,34 @@ function setupFileUpload() {
     pictureUrl.addEventListener('input', () => {
         if (pictureUrl.value.trim()) {
             clearFileUpload();
+        }
+    });
+    
+    // Banner upload setup
+    const bannerFileInput = document.getElementById('banner-file');
+    const bannerUploadBtn = document.getElementById('upload-banner-btn');
+    const bannerFilenameDisplay = document.getElementById('banner-filename');
+    const bannerPreview = document.getElementById('banner-preview');
+    const bannerUrl = document.getElementById('banner');
+    const bannerUploadSection = bannerUploadBtn.parentElement;
+    
+    // Click banner upload button to trigger file input
+    bannerUploadBtn.addEventListener('click', () => {
+        bannerFileInput.click();
+    });
+    
+    // Handle banner file selection
+    bannerFileInput.addEventListener('change', handleBannerFileUpload);
+    
+    // Handle banner drag and drop
+    bannerUploadSection.addEventListener('dragover', handleBannerDragOver);
+    bannerUploadSection.addEventListener('dragleave', handleBannerDragLeave);
+    bannerUploadSection.addEventListener('drop', handleBannerFileDrop);
+    
+    // Clear banner file when URL input is used
+    bannerUrl.addEventListener('input', () => {
+        if (bannerUrl.value.trim()) {
+            clearBannerFileUpload();
         }
     });
 }
@@ -346,6 +375,112 @@ function clearFileUpload() {
     filenameDisplay.classList.remove('has-file');
     picturePreview.classList.add('hidden');
     pictureUrl.value = '';
+}
+
+// Banner file upload handlers
+function handleBannerDragOver(event) {
+    event.preventDefault();
+    event.stopPropagation();
+    event.currentTarget.classList.add('drag-over');
+}
+
+function handleBannerDragLeave(event) {
+    event.preventDefault();
+    event.stopPropagation();
+    event.currentTarget.classList.remove('drag-over');
+}
+
+function handleBannerFileDrop(event) {
+    event.preventDefault();
+    event.stopPropagation();
+    event.currentTarget.classList.remove('drag-over');
+    
+    const files = event.dataTransfer.files;
+    if (files.length > 0) {
+        const file = files[0];
+        if (file.type.startsWith('image/')) {
+            processBannerFile(file);
+        } else {
+            showStatus('Please select an image file', 'error');
+        }
+    }
+}
+
+function handleBannerFileUpload(event) {
+    const file = event.target.files[0];
+    if (file) {
+        if (file.type.startsWith('image/')) {
+            processBannerFile(file);
+        } else {
+            showStatus('Please select an image file', 'error');
+            clearBannerFileUpload();
+        }
+    }
+}
+
+async function processBannerFile(file) {
+    const bannerUploadSection = document.getElementById('upload-banner-btn').parentElement;
+    const bannerFilenameDisplay = document.getElementById('banner-filename');
+    const bannerPreview = document.getElementById('banner-preview');
+    const bannerUrl = document.getElementById('banner');
+    
+    // Show loading state
+    bannerUploadSection.classList.add('loading');
+    bannerFilenameDisplay.textContent = 'Uploading to IPFS...';
+    
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+        showStatus('Banner image file must be less than 5MB', 'error');
+        bannerUploadSection.classList.remove('loading');
+        clearBannerFileUpload();
+        return;
+    }
+    
+    try {
+        showStatus('Uploading banner image to IPFS...', 'loading');
+        
+        // Upload to IPFS
+        const ipfsUrl = await uploadImageToIPFS(file);
+        
+        // Update UI with IPFS URL
+        bannerFilenameDisplay.textContent = file.name + ' (IPFS)';
+        bannerFilenameDisplay.classList.add('has-file');
+        bannerPreview.src = ipfsUrl;
+        bannerPreview.classList.remove('hidden');
+        
+        // Store the IPFS URL in the input field
+        bannerUrl.value = ipfsUrl;
+        
+        // Clear file object attributes since we now have the URL
+        bannerUrl.removeAttribute('data-file-obj');
+        if (bannerUrl.fileObject) {
+            delete bannerUrl.fileObject;
+        }
+        
+        // Update preview
+        updatePreview();
+        
+        bannerUploadSection.classList.remove('loading');
+        showStatus('Banner image uploaded to IPFS successfully!', 'success');
+    } catch (error) {
+        console.error('Banner IPFS upload error:', error);
+        showStatus('Failed to upload banner image to IPFS: ' + error.message, 'error');
+        bannerUploadSection.classList.remove('loading');
+        clearBannerFileUpload();
+    }
+}
+
+function clearBannerFileUpload() {
+    const bannerFileInput = document.getElementById('banner-file');
+    const bannerFilenameDisplay = document.getElementById('banner-filename');
+    const bannerPreview = document.getElementById('banner-preview');
+    const bannerUrl = document.getElementById('banner');
+    
+    bannerFileInput.value = '';
+    bannerFilenameDisplay.textContent = 'No file chosen';
+    bannerFilenameDisplay.classList.remove('has-file');
+    bannerPreview.classList.add('hidden');
+    bannerUrl.value = '';
 }
 
 // Populate form fields with stored data

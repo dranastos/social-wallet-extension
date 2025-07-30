@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Import Identity - Zap Social</title>
+    <link rel="stylesheet" href="import.css">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="header-left">
+                <button id="back-to-main" class="back-btn btn-small" title="Back">←</button>
+            </div>
+            <div class="logo">
+                <div class="zap-icon">⚡</div>
+                <h1>Zap Social</h1>
+            </div>
+            <div class="header-right"></div>
+        </div>
+
+        <div class="content">
+            <div class="import-section">
+                <div class="import-header">
+                    <div class="zap-icon large">🔑</div>
+                    <h2>Import NOSTR Identity</h2>
+                    <p>Enter your existing private key to import your NOSTR identity</p>
+                </div>
+                
+                <div class="import-form">
+                    <div class="input-group">
+                        <label for="private-key-input">Private Key</label>
+                        <textarea id="private-key-input" placeholder="Enter your NOSTR private key (hex or nsec format)..." rows="4"></textarea>
+                        <div class="help-text">Supports both hex format and nsec bech32 format</div>
+                    </div>
+                    
+                    <div class="form-actions">
+                        <button id="import-confirm" class="btn btn-primary">Import Identity</button>
+                        <button id="import-cancel" class="btn btn-secondary">Cancel</button>
+                    </div>
+                </div>
+                
+                <div class="security-notice">
+                    <div class="notice-icon">🔒</div>
+                    <div class="notice-content">
+                        <strong>Security Notice:</strong>
+                        <p>Your private key will be stored securely in your browser's local storage and never transmitted to our servers.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="status-section">
+            <div id="status-indicator" class="status">
+                <span class="status-dot"></span>
+                <span id="status-text">Ready</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Load Buffer polyfill FIRST -->
+    <script src="buffer-polyfill.js"></script>
+    
+    <!-- Load Polkadot API SECOND -->
+    <script src="polkadot-api.js"></script>
+    
+    <!-- Load other required scripts -->
+    <script src="blake2b.js"></script>
+    <script src="test-key-generation.js"></script>
+    <script src="nostr-utils.js"></script>
+    <script src="crypto.js"></script>
+    <script src="import.js"></script>
+</body>
+</html>

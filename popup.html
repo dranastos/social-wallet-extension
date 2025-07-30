@@ -54,20 +54,6 @@
                             </span>
                         </button>
                     </div>
-                    
-                    <!-- Import Form -->
-                    <div id="import-form" class="import-form hidden">
-                        <h3>Import Private Key</h3>
-                        <div class="input-group">
-                            <label for="private-key-input">Private Key</label>
-                            <textarea id="private-key-input" placeholder="Enter your NOSTR private key (hex or nsec format)..." rows="3"></textarea>
-                            <div class="help-text">Supports both hex format and nsec bech32 format</div>
-                        </div>
-                        <div class="form-actions">
-                            <button id="import-confirm" class="btn btn-primary">Import Identity</button>
-                            <button id="import-cancel" class="btn btn-secondary">Cancel</button>
-                        </div>
-                    </div>
                 </div>
             </div>
 
@@ -196,9 +182,18 @@
                                 </div>
 
                                 <div class="input-group">
-                                    <label for="banner">Banner Image URL</label>
-                                    <input type="url" id="banner" name="banner" placeholder="https://example.com/banner.jpg">
+                                    <label for="banner">Banner Image</label>
+                                    <div class="picture-upload-section">
+                                        <input type="file" id="banner-file" name="bannerFile" accept="image/*" class="file-input">
+                                        <button type="button" id="upload-banner-btn" class="btn btn-upload">Choose Banner</button>
+                                        <span id="banner-filename" class="filename-display">No file chosen</span>
+                                    </div>
+                                    <div class="upload-preview">
+                                        <img id="banner-preview" class="preview-img hidden" alt="Banner image preview">
+                                    </div>
+                                    <input type="url" id="banner" name="banner" placeholder="Or enter banner image URL" class="url-fallback">
                                     <div class="validation-message"></div>
+                                    <div class="help-text">Upload a banner image file or enter a URL</div>
                                 </div>
 
                                 <div class="input-group">

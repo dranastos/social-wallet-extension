@@ -181,6 +181,22 @@ class NostrUtils {
         
         return this.bytesToHex(new Uint8Array(bytes));
     }
+
+    static getHexAndNsec(privateKey) {
+        let hex = privateKey;
+        let nsec = null;
+
+        if (this.isValidNsec(privateKey)) {
+            hex = this.nsecToHex(privateKey);
+            nsec = privateKey;
+        } else if (this.isValidPrivateKey(privateKey)) {
+            nsec = this.hexToNsec(privateKey);
+        } else {
+            return { hex: null, nsec: null };
+        }
+
+        return { hex, nsec };
+    }
     
     static isValidPrivateKey(hex) {
         if (!hex || typeof hex !== 'string') return false;
