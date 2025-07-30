@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zap Social</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="header-left">
+                <button id="logout-identity" class="logout-btn btn-small" title="Logout">↩️</button>
+            </div>
+            <div class="logo">
+                <div class="zap-icon">⚡</div>
+                <h1>Zap Social</h1>
+            </div>
+            <div class="header-right">
+                <button id="settings-btn" class="settings-btn btn-small" title="Settings">⚙️</button>
+            </div>
+        </div>
+
+        <div class="content">
+            <div id="no-identity" class="section">
+                <div class="empty-state">
+                    <div class="zap-icon large">⚡</div>
+                    <h2>Setup NOSTR Identity</h2>
+                    <p>Choose how you want to setup your NOSTR identity:</p>
+                    
+                    <div class="identity-options">
+                        <button id="generate-identity" class="btn btn-primary option-btn">
+                            <span class="option-icon">✨</span>
+                            <span class="option-text">
+                                <strong>Generate New</strong>
+                                <small>Create a fresh NOSTR identity</small>
+                            </span>
+                        </button>
+                        
+                        <button id="import-identity" class="btn btn-secondary option-btn">
+                            <span class="option-icon">🔑</span>
+                            <span class="option-text">
+                                <strong>Import Existing</strong>
+                                <small>Use your existing private key</small>
+                            </span>
+                        </button>
+                        
+                        <!-- Log Back In button (hidden by default, shown when user is logged out but has saved keys) -->
+                        <button id="log-back-in" class="btn btn-success option-btn hidden">
+                            <span class="option-icon">🔓</span>
+                            <span class="option-text">
+                                <strong>Log Back In</strong>
+                                <small>Use your saved keys to log back in</small>
+                            </span>
+                        </button>
+                    </div>
+                    
+                    <!-- Import Form -->
+                    <div id="import-form" class="import-form hidden">
+                        <h3>Import Private Key</h3>
+                        <div class="input-group">
+                            <label for="private-key-input">Private Key</label>
+                            <textarea id="private-key-input" placeholder="Enter your NOSTR private key (hex or nsec format)..." rows="3"></textarea>
+                            <div class="help-text">Supports both hex format and nsec bech32 format</div>
+                        </div>
+                        <div class="form-actions">
+                            <button id="import-confirm" class="btn btn-primary">Import Identity</button>
+                            <button id="import-cancel" class="btn btn-secondary">Cancel</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="has-identity" class="section hidden">
+                <div class="profile-display">
+                    <!-- Balance Section at Top -->
+                    <div class="balance-section top-balance">
+                        <label class="balance-label">SlideChain Balance</label>
+                        <div class="balance-display">
+                            <div class="balance-amount" id="balance-amount">Loading...</div>
+                            <button id="refresh-balance" class="btn-refresh-small" title="Refresh Balance">🔄</button>
+                        </div>
+                        <div class="balance-details hidden" id="balance-details">
+                            <div class="balance-item">
+                                <span class="balance-label">Free:</span>
+                                <span class="balance-value" id="balance-free">0.000000000000</span>
+                            </div>
+                            <div class="balance-item">
+                                <span class="balance-label">Reserved:</span>
+                                <span class="balance-value" id="balance-reserved">0.000000000000</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Profile Info -->
+                    <div class="profile-header">
+                        <div class="avatar-container">
+                            <img id="profile-avatar" class="profile-avatar hidden" alt="Profile avatar">
+                            <div class="avatar-placeholder">👤</div>
+                        </div>
+                        <div class="profile-info">
+                            <h2 id="profile-name">Display Name</h2>
+                            <p id="profile-nip05" class="nip05-display hidden"></p>
+                        </div>
+                    </div>
+                    
+                    <div class="profile-bio">
+                        <p id="profile-about">No bio set. Click settings to configure profile.</p>
+                    </div>
+                    
+                    <!-- Main Keys Only -->
+                    <div class="key-section">
+                        <label>Public Key (npub)</label>
+                        <div class="key-display">
+                            <input type="text" id="public-key" readonly>
+                            <button id="copy-public" class="btn btn-copy" title="Copy Public Key">📋</button>
+                        </div>
+                    </div>
+                    
+                    <div class="key-section">
+                        <label>SlideChain Address (SS58)</label>
+                        <div class="key-display">
+                            <input type="text" id="slidechain-address" readonly>
+                            <button id="copy-slidechain" class="btn btn-copy" title="Copy SlideChain Address">📋</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Settings Panel -->
+            <div id="settings-panel" class="settings-panel hidden">
+                <div class="settings-header">
+                    <h2>Settings</h2>
+                    <button id="close-settings" class="close-btn">×</button>
+                </div>
+                
+                <div class="settings-content">
+                    <div class="settings-section">
+                        <h3>Keys & Identity</h3>
+                        <div class="key-section">
+                            <label>Private Key (nsec)</label>
+                            <div class="key-display">
+                                <input type="password" id="private-key" readonly>
+                                <button id="toggle-private" class="btn btn-copy" title="Toggle Visibility">👁️</button>
+                                <button id="copy-private" class="btn btn-copy" title="Copy Private Key">📋</button>
+                            </div>
+                        </div>
+                        <div class="key-section">
+                            <label>Raw Public Key (hex)</label>
+                            <div class="key-display">
+                                <input type="text" id="public-key-hex" readonly>
+                                <button id="copy-public-hex" class="btn btn-copy" title="Copy Raw Public Key">📋</button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="settings-section">
+                        <h3>Profile Management</h3>
+                        <div class="settings-actions">
+                            <button id="edit-profile-settings" class="btn btn-primary">Edit Profile Details</button>
+                            <button id="export-keys" class="btn btn-secondary">Export Keys</button>
+                        </div>
+
+                        <!-- Inline Profile Editor -->
+                        <div id="profile-editor" class="profile-editor hidden">
+                            <h4>Profile Information</h4>
+                            
+                            <form id="profile-form" class="profile-form">
+                                <div class="input-group">
+                                    <label for="display-name">Display Name</label>
+                                    <input type="text" id="display-name" name="name" placeholder="Your display name" maxlength="50">
+                                    <div class="validation-message"></div>
+                                </div>
+
+                                <div class="input-group">
+                                    <label for="about">About / Bio</label>
+                                    <textarea id="about" name="about" placeholder="Tell people about yourself..." maxlength="500" rows="3"></textarea>
+                                    <div class="char-count"><span class="current">0</span> / 500</div>
+                                    <div class="validation-message"></div>
+                                </div>
+
+                                <div class="input-group">
+                                    <label for="picture">Profile Picture</label>
+                                    <div class="picture-upload-section">
+                                        <input type="file" id="picture-file" name="pictureFile" accept="image/*" class="file-input">
+                                        <button type="button" id="upload-picture-btn" class="btn btn-upload">Choose Image</button>
+                                        <span id="picture-filename" class="filename-display">No file chosen</span>
+                                    </div>
+                                    <div class="upload-preview">
+                                        <img id="picture-preview" class="preview-img hidden" alt="Profile picture preview">
+                                    </div>
+                                    <input type="url" id="picture" name="picture" placeholder="Or enter image URL" class="url-fallback">
+                                    <div class="validation-message"></div>
+                                    <div class="help-text">Upload an image file or enter a URL</div>
+                                </div>
+
+                                <div class="input-group">
+                                    <label for="banner">Banner Image URL</label>
+                                    <input type="url" id="banner" name="banner" placeholder="https://example.com/banner.jpg">
+                                    <div class="validation-message"></div>
+                                </div>
+
+                                <div class="input-group">
+                                    <label for="nip05">NIP-05 Identifier</label>
+                                    <input type="email" id="nip05" name="nip05" placeholder="yourname@yourdomain.com">
+                                    <div class="validation-message"></div>
+                                    <div class="help-text">Your verified NOSTR identifier</div>
+                                </div>
+
+                                <div class="input-group">
+                                    <label for="base-addr">Base/Ethereum Address</label>
+                                    <input type="text" id="base-addr" name="baseAddr" placeholder="0xYourEthereumOrBaseAddress">
+                                    <div class="validation-message"></div>
+                                    <div class="help-text">Your Ethereum or Base blockchain address</div>
+                                </div>
+
+                                <div class="form-actions">
+                                    <button type="button" id="save-profile" class="btn btn-primary">Save Profile</button>
+                                    <button type="button" id="cancel-profile-edit" class="btn btn-secondary">Cancel</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                    
+                    <div class="settings-section">
+                        <h3>Advanced</h3>
+                        <div class="settings-actions">
+                            <button id="test-signing" class="btn btn-test">Test Signature</button>
+                            <button id="test-relay-post" class="btn btn-test">Test Relay Post</button>
+                            <button id="run-crypto-tests" class="btn btn-test">Run Full Tests</button>
+                        </div>
+                    </div>
+                    
+                    <div class="settings-section danger-zone">
+                        <h3>Danger Zone</h3>
+                        <button id="clear-identity" class="btn btn-danger">Clear Identity</button>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="signature-test" class="section hidden">
+                <details open>
+                    <summary>🔐 Test Results</summary>
+                    <div id="signature-results" class="test-results">
+                        <!-- Test results will be populated here -->
+                    </div>
+                </details>
+            </div>
+
+            <div class="status-section">
+                <div id="status-indicator" class="status">
+                    <span class="status-dot"></span>
+                    <span id="status-text">Ready</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Load your local Polkadot API FIRST -->
+    <script src="polkadot-api.js"></script>
+    
+    <!-- Your existing scripts in the same order -->
+    <script src="blake2b.js"></script>
+    <script src="debug-balance.js"></script>
+    <script src="simple-balance.js"></script>
+    <script src="slidechain-balance.js"></script>
+    <script src="slidechainAdapter.js"></script>
+    <script src="nostr-utils.js"></script>
+    <script src="crypto.js"></script>
+    <script src="popup.js"></script>
+</body>
+</html>

@@ -1,0 +1,17 @@
+{
+  "name": "substrate-transfer-tool",
+  "version": "1.0.0",
+  "description": "Simple tool to transfer funds on Substrate chain",
+  "main": "transfer.js",
+  "scripts": {
+    "start": "node transfer.js",
+    "transfer": "node transfer.js"
+  },
+  "dependencies": {
+    "@polkadot/api": "^16.3.1",
+    "@polkadot/keyring": "^13.2.1"
+  },
+  "keywords": ["substrate", "polkadot", "blockchain", "transfer"],
+  "author": "Your Name",
+  "license": "MIT"
+}

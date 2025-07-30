@@ -1,0 +1,33 @@
+{
+  "name": "zap-social-extension",
+  "version": "1.0.0",
+  "description": "A browser extension that acts as a NOSTR identity provider, enabling seamless decentralized authentication across NOSTR-enabled websites.",
+  "main": "background-backup.js",
+  "scripts": {
+    "build": "node build.js",
+    "build:dev": "esbuild background.js --bundle --outfile=dist/background.js --format=iife --platform=browser --target=chrome90 --sourcemap",
+    "build:watch": "esbuild background.js --bundle --outfile=dist/background.js --format=iife --platform=browser --target=chrome90 --sourcemap --watch",
+    "build:ts": "tsc",
+    "build:polkadot": "tsc && node dist/keyAdapter.js",
+    "demo": "ts-node demo.ts",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@polkadot/api": "^16.4.3",
+    "@polkadot/keyring": "^13.5.4",
+    "@polkadot/util-crypto": "^13.5.4",
+    "atob": "^2.1.2",
+    "blake2b": "^2.1.4",
+    "blakejs": "^1.2.1",
+    "esbuild": "^0.25.8",
+    "nostr-tools": "^2.15.1"
+  },
+  "devDependencies": {
+    "@types/node": "^24.1.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.8.3"
+  }
+}
