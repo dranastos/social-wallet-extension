@@ -1,17 +1,19 @@
-# Zap Social - NOSTR Identity Provider
+# Social Wallet Extension
 
-A browser extension that acts as a NOSTR identity provider, enabling seamless decentralized authentication across NOSTR-enabled websites.
+🔐 **A powerful browser extension that bridges NOSTR identity with social platforms and SlideChain blockchain**
 
-![Zap Social](https://img.shields.io/badge/Zap-Social-00aaff?style=for-the-badge)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Chrome Extension](https://img.shields.io/badge/Chrome-Extension-blue.svg)](https://chrome.google.com/webstore)
+[![Firefox Add-on](https://img.shields.io/badge/Firefox-Add--on-orange.svg)](https://addons.mozilla.org/firefox/)
 
-## Features
+## ✨ Features
 
-- 🔐 **Secure Key Generation**: Generate cryptographically secure NOSTR key pairs
-- 🔑 **Identity Management**: Store and manage your NOSTR public/private keys
-- 🌐 **Web Integration**: Automatic injection of NOSTR provider API into websites
-- 📋 **Key Export/Import**: Easily backup and restore your identity
-- ⚡ **Zap Protocol Styled**: Beautiful UI matching the Zap Protocol design
-- 🔒 **Privacy First**: All keys stored locally in your browser
+- **🔑 NOSTR Identity Management**: Generate or import NOSTR private keys with full secp256k1 cryptography
+- **💰 SlideChain Integration**: Real-time balance checking and SS58 address conversion
+- **🐦 Social Platform Integration**: Seamless Twitter/X integration for decentralized social interactions
+- **🎨 Beautiful UI**: Modern, responsive popup interface with profile management
+- **🔒 Secure**: Client-side key management with no data sent to external servers
+- **⚡ Fast**: Optimized performance with efficient blockchain queries
 
 ## Installation
 
