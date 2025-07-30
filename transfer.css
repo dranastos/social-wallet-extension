@@ -1,0 +1,73 @@
+.transfer-section {
+    padding: 16px;
+}
+
+.input-group {
+    margin-bottom: 16px;
+}
+
+.input-group label {
+    display: block;
+    color: #a0a0a0;
+    font-size: 12px;
+    font-weight: 500;
+    margin-bottom: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.input-group input {
+    width: 100%;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    padding: 10px 12px;
+    color: #ffffff;
+    font-size: 14px;
+    box-sizing: border-box;
+}
+
+.amount-input-group {
+    display: flex;
+    align-items: center;
+}
+
+.amount-input-group input {
+    flex: 1;
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+}
+
+.amount-unit {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-left: none;
+    border-top-right-radius: 8px;
+    border-bottom-right-radius: 8px;
+    padding: 10px 12px;
+    color: #a0a0a0;
+    font-size: 14px;
+}
+
+.transfer-actions {
+    display: flex;
+    gap: 12px;
+    margin-top: 20px;
+}
+
+.back-btn {
+    background: none;
+    border: none;
+    color: #00aaff;
+    font-size: 24px;
+    cursor: pointer;
+}
+.header-left {
+    flex: 1;
+    display: flex;
+    justify-content: flex-start;
+}
+
+.header-right {
+    flex: 1;
+}

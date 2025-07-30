@@ -194,8 +194,15 @@ function setupEventListeners() {
     document.getElementById('refresh-balance').addEventListener('click', refreshBalance);
     
     // Transfer functionality
-    document.getElementById('send-transfer').addEventListener('click', handleSendTransfer);
-    document.getElementById('clear-transfer').addEventListener('click', clearTransferForm);
+    document.getElementById('open-transfer').addEventListener('click', () => {
+        window.location.href = 'transfer.html';
+    });
+    
+    // These might not exist if we're on the main page
+    const sendTransferBtn = document.getElementById('send-transfer');
+    const clearTransferBtn = document.getElementById('clear-transfer');
+    if (sendTransferBtn) sendTransferBtn.addEventListener('click', handleSendTransfer);
+    if (clearTransferBtn) clearTransferBtn.addEventListener('click', clearTransferForm);
     
     // Logout
     document.getElementById('logout-identity').addEventListener('click', logoutIdentity);

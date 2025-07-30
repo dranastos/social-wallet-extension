@@ -79,6 +79,7 @@
                         <div class="balance-display">
                             <div class="balance-amount" id="balance-amount">Loading...</div>
                             <button id="refresh-balance" class="btn-refresh-small" title="Refresh Balance">🔄</button>
+                            <button id="open-transfer" class="btn-refresh-small" title="Send Funds">💸</button>
                         </div>
                         <div class="balance-details hidden" id="balance-details">
                             <div class="balance-item">
@@ -122,37 +123,6 @@
                         <div class="key-display">
                             <input type="text" id="slidechain-address" readonly>
                             <button id="copy-slidechain" class="btn btn-copy" title="Copy SlideChain Address">📋</button>
-                        </div>
-                    </div>
-                    
-                    <!-- Transfer Section -->
-                    <div class="transfer-section">
-                        <h3>Send Funds</h3>
-                        <div class="transfer-form">
-                            <div class="input-group">
-                                <label for="transfer-to">To Address (SS58)</label>
-                                <input type="text" id="transfer-to" placeholder="Enter destination address...">
-                            </div>
-                            <div class="input-group">
-                                <label for="transfer-amount">Amount</label>
-                                <div class="amount-input-group">
-                                    <input type="number" id="transfer-amount" placeholder="0.000000000000" step="0.000000000001" min="0">
-                                    <span class="amount-unit">tokens</span>
-                                </div>
-                            </div>
-                            <div class="transfer-actions">
-                                <button id="send-transfer" class="btn btn-primary">Send Transfer</button>
-                                <button id="clear-transfer" class="btn btn-secondary">Clear</button>
-                            </div>
-                        </div>
-                        
-                        <!-- Transfer Status -->
-                        <div id="transfer-status" class="transfer-status hidden">
-                            <div class="status-header">
-                                <span class="status-icon">⏳</span>
-                                <span class="status-text">Preparing transfer...</span>
-                            </div>
-                            <div class="status-details"></div>
                         </div>
                     </div>
                 </div>

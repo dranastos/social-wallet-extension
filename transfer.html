@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Send Funds</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="transfer.css">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="header-left">
+                <button id="back-to-main" class="back-btn btn-small" title="Back">⬅️</button>
+            </div>
+            <div class="logo">
+                <div class="zap-icon">⚡</div>
+                <h1>Send Funds</h1>
+            </div>
+            <div class="header-right"></div>
+        </div>
+
+        <div class="content">
+            <div class="transfer-section">
+                <div class="transfer-form">
+                    <div class="input-group">
+                        <label for="transfer-to">To Address (SS58)</label>
+                        <input type="text" id="transfer-to" placeholder="Enter destination address...">
+                    </div>
+                    <div class="input-group">
+                        <label for="transfer-amount">Amount</label>
+                        <div class="amount-input-group">
+                            <input type="number" id="transfer-amount" placeholder="0.000000000000" step="0.000000000001" min="0">
+                            <span class="amount-unit">tokens</span>
+                        </div>
+                    </div>
+                    <div class="transfer-actions">
+                        <button id="send-transfer" class="btn btn-primary">Send Transfer</button>
+                        <button id="clear-transfer" class="btn btn-secondary">Clear</button>
+                    </div>
+                </div>
+                
+                <div id="transfer-status" class="transfer-status hidden">
+                    <div class="status-header">
+                        <span class="status-icon">⏳</span>
+                        <span class="status-text">Preparing transfer...</span>
+                    </div>
+                    <div class="status-details"></div>
+                </div>
+            </div>
+        </div>
+        <div class="status-section">
+            <div id="status-indicator" class="status">
+                <span class="status-dot"></span>
+                <span id="status-text">Ready</span>
+            </div>
+        </div>
+    </div>
+    <script src="buffer-polyfill.js"></script>
+    <script src="polkadot-api.js"></script>
+    <script src="blake2b.js"></script>
+    <script src="slidechain-transfer.js"></script>
+    <script src="transfer.js"></script>
+</body>
+</html>
