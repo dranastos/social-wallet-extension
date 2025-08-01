@@ -258,16 +258,17 @@
     <!-- Load your local Polkadot API SECOND -->
     <script src="polkadot-api.js"></script>
     
-    <!-- Your existing scripts in the same order -->
+    <!-- Load utilities and dependencies BEFORE popup.js -->
     <script src="blake2b.js"></script>
+    <script src="nostr-utils.js"></script>
+    <script src="crypto.js"></script>
     <script src="debug-balance.js"></script>
     <script src="simple-balance.js"></script>
     <script src="slidechain-balance.js"></script>
     <script src="slidechain-transfer.js"></script>
     <script src="test-key-generation.js"></script>
-    <script src="popup.js"></script>
-    <script src="nostr-utils.js"></script>
-    <script src="crypto.js"></script>
+    
+    <!-- Load popup.js LAST after all dependencies -->
     <script src="popup.js"></script>
 </body>
 </html>

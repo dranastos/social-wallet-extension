@@ -37,20 +37,44 @@ window.slideChainTransfer = null;
 function initializeBalance() {
     console.log('🔍 DEBUG: initializeBalance called');
     
+    // Check if already initialized and working
+    if (window.slideChainBalance) {
+        console.log('🔍 DEBUG: SlideChainBalance already initialized');
+        return Promise.resolve();
+    }
+    
     // Use the main SlideChainBalance class (has real implementation)
     if (typeof SlideChainBalance !== 'undefined') {
-        window.slideChainBalance = new SlideChainBalance();
-        console.log('🔍 DEBUG: SlideChainBalance class found and initialized');
-        console.log('SlideChainBalance initialized');
+        try {
+            window.slideChainBalance = new SlideChainBalance();
+            console.log('🔍 DEBUG: SlideChainBalance class found and initialized');
+            console.log('SlideChainBalance initialized');
+            return Promise.resolve();
+        } catch (error) {
+            console.error('🔍 DEBUG: Error initializing SlideChainBalance:', error);
+        }
     } else if (typeof SimpleSlideChainBalance !== 'undefined') {
-        window.slideChainBalance = new SimpleSlideChainBalance();
-        console.log('🔍 DEBUG: SimpleSlideChainBalance initialized (fallback)');
-        console.log('SimpleSlideChainBalance initialized (fallback)');
-    } else {
-        console.log('❌ DEBUG: No balance classes found');
-        console.log('🔍 DEBUG: Available classes:', Object.keys(window).filter(k => k.includes('Balance')));
-        console.warn('No balance classes available - check that balance scripts are loaded');
+        try {
+            window.slideChainBalance = new SimpleSlideChainBalance();
+            console.log('🔍 DEBUG: SimpleSlideChainBalance initialized (fallback)');
+            console.log('SimpleSlideChainBalance initialized (fallback)');
+            return Promise.resolve();
+        } catch (error) {
+            console.error('🔍 DEBUG: Error initializing SimpleSlideChainBalance:', error);
+        }
     }
+    
+    console.log('❌ DEBUG: No balance classes found');
+    console.log('🔍 DEBUG: Available classes:', Object.keys(window).filter(k => k.includes('Balance')));
+    console.warn('No balance classes available - check that balance scripts are loaded');
+    
+    // Return a retry promise
+    return new Promise((resolve) => {
+        // Retry after a short delay
+        setTimeout(() => {
+            initializeBalance().then(resolve);
+        }, 100);
+    });
 }
 
 // Initialize SlideChain transfer functionality when DOM is ready
@@ -436,17 +460,30 @@ async function loadIdentity() {
             // Fetch profile data from NOSTR relays
             try {
                 updateStatus('Fetching profile data from NOSTR relays...', 'loading');
+                console.log('🔍 DEBUG: Fetching profile for public key:', window.currentIdentity.publicKeyHex);
+                
                 const profileData = await NostrUtils.fetchProfileFromRelays(window.currentIdentity.publicKeyHex);
                 
+                console.log('🔍 DEBUG: Profile data received:', profileData);
+                
                 if (profileData && (profileData.name || profileData.about || profileData.picture)) {
+                    console.log('✅ Profile data found, updating display');
                     updateProfileDisplay(profileData);
                     updateStatus('Profile data successfully loaded from NOSTR relay.', 'success');
                 } else {
+                    console.log('ℹ️ No profile data found in response');
                     updateStatus('No profile data found on NOSTR relays.', 'info');
+                    
+                    // DEBUG: Create a test profile if none exists
+                    console.log('🧪 DEBUG: Creating test profile for debugging...');
+                    setTimeout(() => {
+                        createTestProfile();
+                    }, 2000);
                 }
             } catch (error) {
                 console.error('Error fetching profile data from relay:', error);
-                updateStatus('Failed to load profile data from relay.', 'warning');
+                console.error('Profile fetch error details:', error.stack);
+                updateStatus('Failed to load profile data from relay: ' + error.message, 'warning');
             }
             
             displayIdentity();
@@ -563,9 +600,19 @@ function showNoIdentity() {
 async function fetchAndDisplayBalance() {
     console.log('🔍 DEBUG: fetchAndDisplayBalance called');
     
+    // Check if we have an identity first
+    if (!window.currentIdentity) {
+        console.log('❌ DEBUG: No current identity available');
+        return;
+    }
+    
     if (!slideChainBalance) {
         console.log('🔍 DEBUG: slideChainBalance not initialized, initializing...');
         initializeBalance(); // Try to initialize if not already done
+        
+        // Wait a bit for initialization
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
         if (!slideChainBalance) {
             console.log('❌ DEBUG: slideChainBalance still not available');
             updateBalanceDisplay({ error: 'SlideChainBalance class not available' });
@@ -573,11 +620,34 @@ async function fetchAndDisplayBalance() {
         }
     }
     
-    const slidechainAddress = document.getElementById('slidechain-address').value;
+    const addressElement = document.getElementById('slidechain-address');
+    if (!addressElement) {
+        console.log('❌ DEBUG: slidechain-address element not found');
+        return;
+    }
+    
+    const slidechainAddress = addressElement.value;
     console.log('🔍 DEBUG: SlideChain address:', slidechainAddress);
     
-    if (!slidechainAddress || slidechainAddress.includes('Error')) {
-        console.log('❌ DEBUG: No valid SlideChain address');
+    if (!slidechainAddress || slidechainAddress.includes('Error') || slidechainAddress === 'No private key found') {
+        console.log('❌ DEBUG: No valid SlideChain address:', slidechainAddress);
+        
+        // Try to regenerate the address if it's missing
+        if (!slidechainAddress && window.currentIdentity) {
+            console.log('🔄 DEBUG: Trying to generate slidechain address...');
+            try {
+                await generateSlidechainAddress();
+                // Wait a moment for the address to be set
+                await new Promise(resolve => setTimeout(resolve, 500));
+                const newAddress = addressElement.value;
+                if (newAddress && !newAddress.includes('Error')) {
+                    return fetchAndDisplayBalance(); // Retry with new address
+                }
+            } catch (error) {
+                console.error('🔍 DEBUG: Failed to generate slidechain address:', error);
+            }
+        }
+        
         updateBalanceDisplay({ error: 'No valid SlideChain address available' });
         return;
     }
@@ -653,33 +723,54 @@ async function refreshBalance() {
 
 // Initialize balance and transfer functionality when DOM is loaded
 document.addEventListener('DOMContentLoaded', function() {
-    initializeBalance();
-    initializeTransfer();
+    // Wait a bit for all scripts to load
+    setTimeout(async () => {
+        await initializeBalance();
+        initializeTransfer();
+        
+        // Check if we already have an identity and try to fetch balance
+        if (window.currentIdentity) {
+            setTimeout(() => {
+                fetchAndDisplayBalance();
+            }, 1000);
+        }
+    }, 200);
 });
 
-// Auto-fetch balance when SlideChain address is generated (wrapped in setTimeout to avoid immediate call issues)
+// Auto-fetch balance when SlideChain address is generated
 if (!window.originalGenerateSlidechainAddressWrapper) {
     window.originalGenerateSlidechainAddressWrapper = generateSlidechainAddress;
     generateSlidechainAddress = async function() {
         await window.originalGenerateSlidechainAddressWrapper.apply(this, arguments);
         
-        // Fetch balance after address is generated
-        setTimeout(() => {
-            fetchAndDisplayBalance();
-        }, 1000);
+        // Fetch balance after address is generated - reduced delay and made more robust
+        setTimeout(async () => {
+            if (window.currentIdentity && document.getElementById('slidechain-address')?.value) {
+                await fetchAndDisplayBalance();
+            }
+        }, 250); // Reduced from 1000ms to 250ms
     };
 }
 
-// Auto-fetch balance when identity is loaded (wrapped in setTimeout to avoid immediate call issues)
+// Auto-fetch balance when identity is loaded
 if (!window.originalDisplayIdentityWrapper) {
     window.originalDisplayIdentityWrapper = displayIdentity;
     displayIdentity = async function() {
         await window.originalDisplayIdentityWrapper.apply(this, arguments);
         
-        // Fetch balance after identity is displayed
-        setTimeout(() => {
-            fetchAndDisplayBalance();
-        }, 1500);
+        // Fetch balance after identity is displayed - reduced delay and added more checks
+        setTimeout(async () => {
+            if (window.currentIdentity && document.getElementById('slidechain-address')?.value) {
+                await fetchAndDisplayBalance();
+            } else {
+                // If slidechain address is not ready, wait a bit more and try again
+                setTimeout(async () => {
+                    if (window.currentIdentity) {
+                        await fetchAndDisplayBalance();
+                    }
+                }, 500);
+            }
+        }, 500); // Reduced from 1500ms to 500ms
     };
 }
 
@@ -1557,25 +1648,49 @@ async function handleBannerFileUpload(event) {
 }
 
 async function saveProfile() {
+    console.log('🔥 DEBUG: saveProfile function called');
+    console.log('🔥 DEBUG: window.currentIdentity:', window.currentIdentity);
+    
     try {
         if (!window.currentIdentity) {
+            console.log('❌ DEBUG: No currentIdentity available');
             updateStatus('No identity available to save profile', 'error');
             return;
         }
         
+        console.log('✅ DEBUG: Identity found, proceeding with profile save');
         updateStatus('Saving profile...', 'loading');
         
         // Get form data
+        console.log('🔥 DEBUG: Getting form elements...');
+        const displayNameEl = document.getElementById('display-name');
+        const aboutEl = document.getElementById('about');
+        const pictureEl = document.getElementById('picture');
+        const bannerEl = document.getElementById('banner');
+        const nip05El = document.getElementById('nip05');
+        const baseAddrEl = document.getElementById('base-addr');
+        
+        console.log('🔥 DEBUG: Form elements found:', {
+            displayName: !!displayNameEl,
+            about: !!aboutEl,
+            picture: !!pictureEl,
+            banner: !!bannerEl,
+            nip05: !!nip05El,
+            baseAddr: !!baseAddrEl
+        });
+        
         const profileData = {
-            name: document.getElementById('display-name').value.trim(),
-            about: document.getElementById('about').value.trim(),
-            picture: document.getElementById('picture').value.trim(),
-            banner: document.getElementById('banner').value.trim(),
-            nip05: document.getElementById('nip05').value.trim(),
-            baseAddr: document.getElementById('base-addr').value.trim(),
+            name: displayNameEl ? displayNameEl.value.trim() : '',
+            about: aboutEl ? aboutEl.value.trim() : '',
+            picture: pictureEl ? pictureEl.value.trim() : '',
+            banner: bannerEl ? bannerEl.value.trim() : '',
+            nip05: nip05El ? nip05El.value.trim() : '',
+            baseAddr: baseAddrEl ? baseAddrEl.value.trim() : '',
             pubkey: window.currentIdentity.publicKeyHex,
             updated_at: Math.floor(Date.now() / 1000)
         };
+        
+        console.log('🔥 DEBUG: Profile data collected:', profileData);
         
         // Store profile data
         await new Promise((resolve) => {
@@ -1906,6 +2021,8 @@ async function exportKeys() {
 // Publish Event to Relays
 async function publishEventToRelays(signedEvent) {
     const relays = [
+        'wss://nostr.chainmagic.studio',
+        'wss://relay.nostr.band',
         'wss://relay.damus.io',
         'wss://nos.lol',
         'wss://relay.snort.social'
@@ -2278,4 +2395,127 @@ if (!window.originalImportIdentity) {
             notifyIdentityChange();
         }, 1000);
     };
+}
+
+// DEBUG: Create a test profile to verify relay saving and loading
+async function createTestProfile() {
+    if (!window.currentIdentity) {
+        console.log('🧪 DEBUG: No identity available for test profile creation');
+        return;
+    }
+    
+    try {
+        console.log('🧪 DEBUG: Creating test profile for debugging...');
+        updateStatus('Creating test profile for debugging...', 'loading');
+        
+        // Create test profile data
+        const testProfileData = {
+            name: 'Test User ' + Math.floor(Math.random() * 1000),
+            about: 'This is a test profile created automatically by Zap Social extension for debugging purposes.',
+            picture: '',
+            banner: '',
+            nip05: '',
+            baseAddr: '',
+            pubkey: window.currentIdentity.publicKeyHex,
+            updated_at: Math.floor(Date.now() / 1000)
+        };
+        
+        console.log('🧪 DEBUG: Test profile data:', testProfileData);
+        
+        // Store locally first
+        await new Promise((resolve) => {
+            chrome.storage.local.set({ profileData: testProfileData }, resolve);
+        });
+        
+        console.log('🧪 DEBUG: Test profile stored locally');
+        
+        // Create the metadata event (kind 0) for NOSTR profile
+        const metadataContent = {
+            name: testProfileData.name,
+            about: testProfileData.about,
+            picture: testProfileData.picture,
+            banner: testProfileData.banner,
+            nip05: testProfileData.nip05
+        };
+        
+        const metadataEvent = {
+            kind: 0,
+            content: JSON.stringify(metadataContent),
+            created_at: Math.floor(Date.now() / 1000),
+            tags: []
+        };
+        
+        console.log('🧪 DEBUG: Created metadata event:', metadataEvent);
+        
+        // Sign the event using the background script
+        console.log('🧪 DEBUG: Sending event to background script for signing...');
+        const response = await new Promise((resolve) => {
+            chrome.runtime.sendMessage({
+                type: 'NOSTR_REQUEST',
+                method: 'signEvent',
+                params: { event: metadataEvent }
+            }, resolve);
+        });
+        
+        console.log('🧪 DEBUG: Background script response:', response);
+        
+        if (response.error) {
+            throw new Error('Failed to sign test profile: ' + response.error);
+        }
+        
+        const signedEvent = response.result;
+        console.log('🧪 DEBUG: Signed event received:', {
+            id: signedEvent.id,
+            pubkey: signedEvent.pubkey,
+            sig: signedEvent.sig?.substring(0, 20) + '...',
+            kind: signedEvent.kind,
+            created_at: signedEvent.created_at
+        });
+        
+        // Publish to relays
+        console.log('🧪 DEBUG: Publishing test profile to relays...');
+        updateStatus('Publishing test profile to NOSTR relays...', 'loading');
+        
+        const publishResult = await publishEventToRelays(signedEvent);
+        
+        console.log('🧪 DEBUG: Publish result:', publishResult);
+        
+        if (publishResult.successCount > 0) {
+            console.log('🧪 DEBUG: Test profile published successfully!');
+            updateStatus(`Test profile published to ${publishResult.successCount} relays!`, 'success');
+            
+            // Update the display with test profile
+            updateProfileDisplay(testProfileData);
+            
+            // Wait a moment, then try to fetch it back
+            setTimeout(async () => {
+                console.log('🧪 DEBUG: Attempting to fetch test profile back from relays...');
+                updateStatus('Verifying test profile on relays...', 'loading');
+                
+                try {
+                    const fetchedProfile = await NostrUtils.fetchProfileFromRelays(window.currentIdentity.publicKeyHex);
+                    console.log('🧪 DEBUG: Fetched profile back:', fetchedProfile);
+                    
+                    if (fetchedProfile && fetchedProfile.name === testProfileData.name) {
+                        console.log('✅ DEBUG: Test profile verification successful!');
+                        updateStatus('✅ Test profile created and verified on relays!', 'success');
+                    } else {
+                        console.log('⚠️ DEBUG: Test profile not found or different on relays');
+                        updateStatus('⚠️ Test profile created but verification failed', 'warning');
+                    }
+                } catch (fetchError) {
+                    console.error('🧪 DEBUG: Error fetching test profile back:', fetchError);
+                    updateStatus('⚠️ Test profile created but fetch verification failed', 'warning');
+                }
+            }, 5000); // Wait 5 seconds before trying to fetch back
+            
+        } else {
+            console.error('🧪 DEBUG: Failed to publish test profile to any relay');
+            updateStatus('❌ Failed to publish test profile to relays', 'error');
+        }
+        
+    } catch (error) {
+        console.error('🧪 DEBUG: Error creating test profile:', error);
+        updateStatus('❌ Failed to create test profile: ' + error.message, 'error');
+    }
 }

@@ -915,7 +915,7 @@ async function saveProfile() {
         try {
             // Get private key to publish to relays
             const keys = await new Promise(resolve => {
-                chrome.storage.local.get(['nostr_private_key'], resolve);
+                chrome.storage.local.get(['nostr_private_key', 'profile_autofollow_done'], resolve);
             });
             
             if (keys.nostr_private_key) {
@@ -923,6 +923,33 @@ async function saveProfile() {
                 
                 if (publishResult.success) {
                     updateStatus(`Profile published successfully to ${publishResult.successCount}/${publishResult.totalRelays} relays!`, 'success');
+                    
+                    // Handle autofollow if this is a new profile (first time saving)
+                    if (!keys.profile_autofollow_done) {
+                        console.log('🔄 Profile: First profile save detected, running autofollow...');
+                        updateStatus('Setting up automatic follows...', 'loading');
+                        
+                        try {
+                            const autofollowResult = await NostrUtils.handleAutofollow(keys.nostr_private_key);
+                            
+                            if (autofollowResult.success) {
+                                if (autofollowResult.newContacts > 0) {
+                                    updateStatus(`Profile published and automatically following ${autofollowResult.newContacts} recommended accounts!`, 'success');
+                                } else {
+                                    updateStatus('Profile published successfully!', 'success');
+                                }
+                                
+                                // Mark autofollow as completed
+                                chrome.storage.local.set({ profile_autofollow_done: true });
+                            } else {
+                                console.warn('Autofollow failed:', autofollowResult.message);
+                                updateStatus('Profile published successfully. Autofollow setup had issues.', 'warning');
+                            }
+                        } catch (autofollowError) {
+                            console.error('Error during autofollow:', autofollowError);
+                            updateStatus('Profile published successfully. Autofollow setup failed.', 'warning');
+                        }
+                    }
                 } else {
                     updateStatus('Profile saved locally but failed to publish to relays', 'warning');
                     console.error('Relay publish errors:', publishResult.errors);

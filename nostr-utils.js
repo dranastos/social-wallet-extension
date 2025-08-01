@@ -267,13 +267,17 @@ class NostrUtils {
     
     // Relay communication functions
     static defaultRelays = [
+        'wss://nostr.chainmagic.studio',
+        'wss://relay.nostr.band',
         'wss://relay.damus.io',
         'wss://nostr.wine',
-        'wss://relay.nostr.band',
         'wss://nos.lol'
     ];
     
     static async fetchProfileFromRelays(publicKeyHex, relays = this.defaultRelays) {
+        console.log('🔍 NostrUtils: Fetching profile for public key:', publicKeyHex);
+        console.log('🔍 NostrUtils: Using relays:', relays);
+        
         const profile = {
             name: '',
             about: '',
@@ -282,30 +286,54 @@ class NostrUtils {
             nip05: '',
             lud06: '',
             lud16: '',
-            website: ''
+            website: '',
+            ethereum: '',
+            base: '',
+            baseAddr: ''
         };
         
-        const promises = relays.map(relay => this.fetchProfileFromRelay(publicKeyHex, relay));
+        const promises = relays.map(relay => {
+            console.log('🔍 NostrUtils: Creating fetch promise for relay:', relay);
+            return this.fetchProfileFromRelay(publicKeyHex, relay);
+        });
         
         try {
+            console.log('🔍 NostrUtils: Waiting for all relay responses...');
             const results = await Promise.allSettled(promises);
+            console.log('🔍 NostrUtils: All relay responses received:', results);
+            
+            let foundProfile = false;
             
             // Merge results from all relays, prioritizing non-empty values
-            for (const result of results) {
+            for (let i = 0; i < results.length; i++) {
+                const result = results[i];
+                const relayUrl = relays[i];
+                
                 if (result.status === 'fulfilled' && result.value) {
+                    console.log(`✅ NostrUtils: Profile data from ${relayUrl}:`, result.value);
                     const relayProfile = result.value;
+                    foundProfile = true;
+                    
                     for (const key in profile) {
                         if (relayProfile[key] && !profile[key]) {
                             profile[key] = relayProfile[key];
+                            console.log(`📝 NostrUtils: Set ${key} = ${relayProfile[key]} from ${relayUrl}`);
                         }
                     }
+                } else if (result.status === 'rejected') {
+                    console.log(`❌ NostrUtils: Failed to fetch from ${relayUrl}:`, result.reason);
+                } else {
+                    console.log(`ℹ️ NostrUtils: No profile data from ${relayUrl}`);
                 }
             }
             
-            return profile;
+            console.log('🔍 NostrUtils: Final merged profile:', profile);
+            console.log('🔍 NostrUtils: Found any profile data:', foundProfile);
+            
+            return foundProfile ? profile : null;
         } catch (error) {
-            console.error('Error fetching profile from relays:', error);
-            return profile;
+            console.error('❌ NostrUtils: Error fetching profile from relays:', error);
+            return null;
         }
     }
     
@@ -387,8 +415,13 @@ class NostrUtils {
     
     // Publish profile to Nostr relays
     static async publishProfileToRelays(privateKeyHex, profileData, relays = this.defaultRelays) {
+        console.log('📤 NostrUtils: Starting profile publication to relays...');
+        console.log('📤 NostrUtils: Target relays:', relays);
+        console.log('📤 NostrUtils: Profile data:', profileData);
+        
         try {
             const publicKeyHex = await this.getPublicKey(privateKeyHex);
+            console.log('📤 NostrUtils: Public key derived:', publicKeyHex);
             
             // Create the metadata event (kind 0)
             const unsignedEvent = {
@@ -408,33 +441,46 @@ class NostrUtils {
                 pubkey: publicKeyHex
             };
             
+            console.log('📤 NostrUtils: Unsigned event created:', unsignedEvent);
+            
             // Use the same signing mechanism that works for the extension
             const signedEvent = await this.signEventWithExtension(unsignedEvent);
+            console.log('📤 NostrUtils: Event signed successfully:', signedEvent);
             
             // Publish to relays
+            console.log('📤 NostrUtils: Publishing to', relays.length, 'relays...');
             const publishPromises = relays.map(relay => this.publishToRelay(signedEvent, relay));
             const results = await Promise.allSettled(publishPromises);
             
             let successCount = 0;
             let errors = [];
             
+            console.log('📤 NostrUtils: All relay publish attempts completed. Processing results...');
+            
             results.forEach((result, index) => {
+                const relayUrl = relays[index];
                 if (result.status === 'fulfilled' && result.value) {
                     successCount++;
+                    console.log(`✅ NostrUtils: Successfully published to ${relayUrl}`);
                 } else {
-                    errors.push(`${relays[index]}: ${result.reason || 'Unknown error'}`);
+                    const errorMsg = `${relayUrl}: ${result.reason || 'Unknown error'}`;
+                    errors.push(errorMsg);
+                    console.log(`❌ NostrUtils: Failed to publish to ${relayUrl}:`, result.reason);
                 }
             });
             
-            return {
+            const result = {
                 success: successCount > 0,
                 successCount,
                 totalRelays: relays.length,
                 errors
             };
             
+            console.log('📤 NostrUtils: Final publication result:', result);
+            return result;
+            
         } catch (error) {
-            console.error('Error publishing profile to relays:', error);
+            console.error('❌ NostrUtils: Error publishing profile to relays:', error);
             return {
                 success: false,
                 successCount: 0,
@@ -445,6 +491,8 @@ class NostrUtils {
     }
     
     static async publishToRelay(event, relayUrl) {
+        console.log(`🔗 NostrUtils: Connecting to relay ${relayUrl}...`);
+        
         return new Promise((resolve, reject) => {
             const ws = new WebSocket(relayUrl);
             let timeout;
@@ -455,19 +503,23 @@ class NostrUtils {
             };
             
             timeout = setTimeout(() => {
+                console.log(`⏰ NostrUtils: Timeout connecting to ${relayUrl}`);
                 cleanup();
                 reject('Timeout');
             }, 10000);
             
             ws.onopen = () => {
+                console.log(`🔗 NostrUtils: Connected to ${relayUrl}, sending event...`);
                 // Send the event
                 const eventMessage = ["EVENT", event];
                 ws.send(JSON.stringify(eventMessage));
+                console.log(`📤 NostrUtils: Event sent to ${relayUrl}`);
             };
             
             ws.onmessage = (wsEvent) => {
                 try {
                     const message = JSON.parse(wsEvent.data);
+                    console.log(`📨 NostrUtils: Received message from ${relayUrl}:`, message);
                     
                     if (message[0] === "OK" && message[1] === event.id) {
                         const success = message[2];
@@ -475,22 +527,27 @@ class NostrUtils {
                         
                         cleanup();
                         if (success) {
+                            console.log(`✅ NostrUtils: ${relayUrl} accepted the event`);
                             resolve(true);
                         } else {
+                            console.log(`❌ NostrUtils: ${relayUrl} rejected the event:`, errorMessage);
                             reject(errorMessage || 'Relay rejected event');
                         }
                     }
                 } catch (error) {
-                    console.error('Error parsing relay response:', error);
+                    console.error(`❌ NostrUtils: Error parsing relay response from ${relayUrl}:`, error);
+                    reject(`Parse error: ${error.message}`);
                 }
             };
             
-            ws.onerror = () => {
+            ws.onerror = (error) => {
+                console.log(`❌ NostrUtils: WebSocket error with ${relayUrl}:`, error);
                 cleanup();
                 reject('WebSocket error');
             };
             
-            ws.onclose = () => {
+            ws.onclose = (closeEvent) => {
+                console.log(`🔌 NostrUtils: Connection to ${relayUrl} closed. Code: ${closeEvent.code}, Reason: ${closeEvent.reason}`);
                 cleanup();
                 reject('Connection closed');
             };
@@ -537,9 +594,273 @@ class NostrUtils {
             return null;
         }
     }
-}
-
-// Export for use in other files
+    
+    // Read autofollow accounts from file
+    static async readAutofollowAccounts() {
+        try {
+            const response = await fetch('./autofollow.txt');
+            if (!response.ok) {
+                console.log('📄 NostrUtils: No autofollow.txt file found');
+                return [];
+            }
+            const text = await response.text();
+            const accounts = text.split('\n')
+                .map(line => line.trim())
+                .filter(line => line && (line.startsWith('npub') || line.match(/^[a-f0-9]{64}$/)));
+            console.log('📄 NostrUtils: Found autofollow accounts:', accounts);
+            return accounts;
+        } catch (error) {
+            console.error('❌ NostrUtils: Error reading autofollow.txt:', error);
+            return [];
+        }
+    }
+    
+    // Fetch specific event from relay
+    static async fetchEventFromRelay(relayUrl, filter) {
+        return new Promise((resolve, reject) => {
+            const ws = new WebSocket(relayUrl);
+            let timeout;
+            
+            const cleanup = () => {
+                if (timeout) clearTimeout(timeout);
+                if (ws.readyState === WebSocket.OPEN) ws.close();
+            };
+            
+            timeout = setTimeout(() => {
+                cleanup();
+                resolve(null);
+            }, 5000);
+            
+            ws.onopen = () => {
+                const subscription = [
+                    "REQ",
+                    "fetch_" + Math.random().toString(36).substr(2, 9),
+                    filter
+                ];
+                
+                ws.send(JSON.stringify(subscription));
+            };
+            
+            ws.onmessage = (event) => {
+                try {
+                    const message = JSON.parse(event.data);
+                    
+                    if (message[0] === "EVENT" && message[2]) {
+                        cleanup();
+                        resolve(message[2]);
+                    } else if (message[0] === "EOSE") {
+                        cleanup();
+                        resolve(null);
+                    }
+                } catch (error) {
+                    console.error('Error parsing relay message:', error);
+                }
+            };
+            
+            ws.onerror = () => {
+                cleanup();
+                resolve(null);
+            };
+            
+            ws.onclose = () => {
+                cleanup();
+                resolve(null);
+            };
+        });
+    }
+    
+    // Get current contact list from relays
+    static async fetchContactList(publicKeyHex, relays = this.defaultRelays) {
+        console.log('📥 NostrUtils: Fetching contact list for:', publicKeyHex);
+        
+        for (const relay of relays) {
+            try {
+                const contactEvent = await this.fetchEventFromRelay(relay, {
+                    kinds: [3],
+                    authors: [publicKeyHex],
+                    limit: 1
+                });
+                
+                if (contactEvent) {
+                    console.log('📥 NostrUtils: Found contact list:', contactEvent);
+                    return contactEvent;
+                }
+            } catch (error) {
+                console.error(`❌ NostrUtils: Error fetching from ${relay}:`, error);
+            }
+        }
+        
+        console.log('📥 NostrUtils: No existing contact list found');
+        return null;
+    }
+    
+    // Publish contact list (kind 3) to relays
+    static async publishContactList(privateKeyHex, contacts, relays = this.defaultRelays) {
+        console.log('📤 NostrUtils: Publishing contact list with', contacts.length, 'contacts');
+        
+        try {
+            const publicKeyHex = await this.getPublicKey(privateKeyHex);
+            
+            // Convert contacts to proper format - each contact is a p tag with pubkey
+            const tags = contacts.map(contact => {
+                let pubkeyHex = contact;
+                
+                // Convert npub to hex if needed
+                if (contact.startsWith('npub')) {
+                    pubkeyHex = this.npubToHex(contact);
+                }
+                
+                if (!pubkeyHex || !pubkeyHex.match(/^[a-f0-9]{64}$/)) {
+                    console.warn('⚠️ NostrUtils: Invalid contact pubkey:', contact);
+                    return null;
+                }
+                
+                return ['p', pubkeyHex];
+            }).filter(tag => tag !== null);
+            
+            console.log('📤 NostrUtils: Contact tags:', tags);
+            
+            const contactEvent = {
+                kind: 3,
+                created_at: Math.floor(Date.now() / 1000),
+                tags: tags,
+                content: '', // Can contain relay recommendations in JSON format
+                pubkey: publicKeyHex
+            };
+            
+            console.log('📤 NostrUtils: Unsigned contact event:', contactEvent);
+            
+            // Sign the event
+            const signedEvent = await this.signEventWithExtension(contactEvent);
+            console.log('📤 NostrUtils: Contact event signed successfully');
+            
+            // Publish to relays
+            const publishPromises = relays.map(relay => this.publishToRelay(signedEvent, relay));
+            const results = await Promise.allSettled(publishPromises);
+            
+            let successCount = 0;
+            let errors = [];
+            
+            results.forEach((result, index) => {
+                const relayUrl = relays[index];
+                if (result.status === 'fulfilled' && result.value) {
+                    successCount++;
+                    console.log(`✅ NostrUtils: Contact list published to ${relayUrl}`);
+                } else {
+                    const errorMsg = `${relayUrl}: ${result.reason || 'Unknown error'}`;
+                    errors.push(errorMsg);
+                    console.log(`❌ NostrUtils: Failed to publish contact list to ${relayUrl}:`, result.reason);
+                }
+            });
+            
+            const result = {
+                success: successCount > 0,
+                successCount,
+                totalRelays: relays.length,
+                errors
+            };
+            
+            console.log('📤 NostrUtils: Contact list publication result:', result);
+            return result;
+            
+        } catch (error) {
+            console.error('❌ NostrUtils: Error publishing contact list:', error);
+            return {
+                success: false,
+                successCount: 0,
+                totalRelays: relays.length,
+                errors: [error.message]
+            };
+        }
+    }
+    
+    // Auto-follow accounts when a new profile is created
+    static async handleAutofollow(privateKeyHex) {
+        console.log('🔄 NostrUtils: Starting autofollow process...');
+        
+        try {
+            const publicKeyHex = await this.getPublicKey(privateKeyHex);
+            
+            // Read autofollow accounts from file
+            const autofollowAccounts = await this.readAutofollowAccounts();
+            
+            if (autofollowAccounts.length === 0) {
+                console.log('📄 NostrUtils: No autofollow accounts found');
+                return { success: true, message: 'No autofollow accounts configured' };
+            }
+            
+            // Get existing contact list
+            const existingContactEvent = await this.fetchContactList(publicKeyHex);
+            let existingContacts = [];
+            
+            if (existingContactEvent && existingContactEvent.tags) {
+                existingContacts = existingContactEvent.tags
+                    .filter(tag => tag[0] === 'p' && tag[1])
+                    .map(tag => tag[1]);
+                console.log('📥 NostrUtils: Existing contacts:', existingContacts);
+            }
+            
+            // Convert autofollow npubs to hex and check if already following
+            const newContacts = [];
+            const alreadyFollowing = [];
+            
+            for (const account of autofollowAccounts) {
+                let pubkeyHex = account;
+                
+                if (account.startsWith('npub')) {
+                    pubkeyHex = this.npubToHex(account);
+                }
+                
+                if (pubkeyHex && pubkeyHex.match(/^[a-f0-9]{64}$/)) {
+                    if (existingContacts.includes(pubkeyHex)) {
+                        alreadyFollowing.push(account);
+                    } else {
+                        newContacts.push(pubkeyHex);
+                    }
+                }
+            }
+            
+            console.log('👥 NostrUtils: Already following:', alreadyFollowing);
+            console.log('👥 NostrUtils: New contacts to add:', newContacts);
+            
+            if (newContacts.length === 0) {
+                console.log('✅ NostrUtils: Already following all autofollow accounts');
+                return { success: true, message: 'Already following all autofollow accounts' };
+            }
+            
+            // Combine existing and new contacts
+            const allContacts = [...existingContacts, ...newContacts];
+            
+            // Publish updated contact list
+            const publishResult = await this.publishContactList(privateKeyHex, allContacts);
+            
+            if (publishResult.success) {
+                console.log(`✅ NostrUtils: Successfully added ${newContacts.length} new contacts`);
+                return {
+                    success: true,
+                    message: `Added ${newContacts.length} new contacts to follow list`,
+                    newContacts: newContacts.length,
+                    publishResult
+                };
+            } else {
+                console.error('❌ NostrUtils: Failed to publish updated contact list');
+                return {
+                    success: false,
+                    message: 'Failed to publish updated contact list',
+                    publishResult
+                };
+            }
+            
+        } catch (error) {
+            console.error('❌ NostrUtils: Error in autofollow process:', error);
+            return {
+                success: false,
+                message: `Autofollow error: ${error.message}`
+            };
+        }
+    }
+    
+    // Export for use in other files
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = NostrUtils;
 } else if (typeof window !== 'undefined') {

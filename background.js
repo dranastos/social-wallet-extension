@@ -6455,7 +6455,7 @@ if (typeof Buffer === 'undefined') {
         const eventToSign = {
           pubkey: event.pubkey || result.nostr_public_key,
           created_at: event.created_at || Math.floor(Date.now() / 1e3),
-          kind: event.kind || 1,
+          kind: event.kind !== undefined ? event.kind : 1,
           tags: event.tags || [],
           content: event.content || ""
         };
@@ -6634,6 +6634,8 @@ if (typeof Buffer === 'undefined') {
   }
   async function handleGetRelays(sendResponse) {
     const defaultRelays = {
+      "wss://nostr.chainmagic.studio": { read: true, write: true },
+      "wss://relay.nostr.band": { read: true, write: true },
       "wss://relay.damus.io": { read: true, write: true },
       "wss://nos.lol": { read: true, write: true },
       "wss://relay.snort.social": { read: true, write: true }
